@@ -58,6 +58,8 @@ import {
   IPC_MODELS_SET_DEFAULT,
   IPC_MODELS_SET_FALLBACKS,
   IPC_MODELS_SET_ALIASES,
+  IPC_MODELS_AUTH_LOGIN,
+  IPC_GATEWAY_APPLY_CONNECTION,
   IPC_PLUGINS_LIST,
   IPC_PLUGINS_TOGGLE,
   IPC_PLUGINS_INSTALL,
@@ -68,6 +70,7 @@ import {
   IPC_PAIRING_LIST_APPROVED,
   IPC_PAIRING_APPROVE,
   IPC_PAIRING_REMOVE_APPROVED,
+  IPC_CHAT_PICK_ATTACHMENTS,
   IPC_GATEWAY_STATUS_CHANGE,
   IPC_GATEWAY_LOG,
   IPC_STREAM_GATEWAY_LOGS,
@@ -181,7 +184,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     invoke<{ ran: boolean; ok: boolean; report?: unknown; rollbackGuidance: string }>(
       IPC_UPDATE_GET_POST_UPDATE_VALIDATION,
     ),
-  diagnosticsRun: () => invoke(IPC_DIAGNOSTICS_RUN),
+  diagnosticsRun: (opts?: { fix?: boolean }) => invoke(IPC_DIAGNOSTICS_RUN, opts),
   diagnosticsSummary: () => invoke(IPC_DIAGNOSTICS_SUMMARY),
 
   modelsList: () => invoke<{ models: Array<{ id: string; name?: string; provider?: string }> }>(IPC_MODELS_LIST),
@@ -191,6 +194,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
     invoke(IPC_MODELS_SET_FALLBACKS, opts),
   modelsSetAliases: (opts: { aliases: Record<string, { alias?: string }> }) =>
     invoke(IPC_MODELS_SET_ALIASES, opts),
+  modelsAuthLogin: (opts: { provider: string; method?: 'oauth' | 'api-key' }) =>
+    invoke<{ ok: boolean; exitCode: number; message: string; stdout: string; stderr: string }>(
+      IPC_MODELS_AUTH_LOGIN,
+      opts,
+    ),
+  gatewayApplyConnection: (opts: {
+    mode: 'local' | 'remote'
+    url?: string
+    token?: string
+    transport?: 'direct' | 'ssh'
+  }) => invoke(IPC_GATEWAY_APPLY_CONNECTION, opts),
 
   pluginsList: () => invoke(IPC_PLUGINS_LIST),
   pluginsToggle: (opts: { id: string; enabled: boolean } | { pluginId: string; enabled: boolean }) =>
@@ -224,6 +238,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     invoke<{ ok: boolean; message?: string }>(IPC_PAIRING_APPROVE, opts),
   pairingRemoveApproved: (opts: { channel: 'feishu'; openId: string }) =>
     invoke<{ ok: boolean }>(IPC_PAIRING_REMOVE_APPROVED, opts),
+
+  chatPickAttachments: () =>
+    invoke<{ ok: boolean; count: number; skipped: string[]; message?: string }>(IPC_CHAT_PICK_ATTACHMENTS),
 
   // ─── Event subscriptions ─────────────────────────────────────────────────────
   onGatewayStatusChange: (callback: (status: unknown) => void) =>

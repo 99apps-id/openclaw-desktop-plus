@@ -1,7 +1,8 @@
 /**
- * Wizard + LLM API 设置：供应商列表与模型预设。
- * 与上游 OpenClaw 捆绑版本对齐（package.json `openclawBundleVersion`、build/openclaw/docs/providers、dist 内建 catalog）。
- * 额外配置字段由 ModelStep 处理：moonshot 区域、Cloudflare Gateway、自定义 baseUrl/兼容模式等。
+ * Wizard + LLM API settings: provider list and model presets.
+ * Aligned with the bundled OpenClaw version (`package.json` `openclawBundleVersion`,
+ * `build/openclaw/docs/providers`, and the in-dist catalog).
+ * Extra fields are handled in ModelStep (Moonshot region, Cloudflare Gateway, custom baseUrl, etc.).
  */
 
 import type { ModelProvider } from '../../shared/types'
@@ -17,7 +18,7 @@ export interface ModelPreset {
   label: string
 }
 
-/** 顺序大致对应 openclaw onboard 常见选项与文档推荐顺序 */
+/** Roughly follows openclaw onboard defaults and recommended provider order in upstream docs. */
 export const PROVIDER_OPTIONS: readonly ProviderOption[] = [
   { id: 'anthropic', label: 'Anthropic', placeholder: 'sk-ant-api03-...' },
   { id: 'openai', label: 'OpenAI', placeholder: 'sk-proj-...' },
@@ -32,7 +33,7 @@ export const PROVIDER_OPTIONS: readonly ProviderOption[] = [
   { id: 'moonshot', label: 'Moonshot (Kimi) Global', placeholder: 'sk-...' },
   { id: 'moonshot-cn', label: 'Moonshot (Kimi) China', placeholder: 'sk-...' },
   { id: 'kimi-coding', label: 'Kimi Coding', placeholder: 'kimi-...' },
-  { id: 'openrouter', label: 'OpenRouter', placeholder: 'sk-or-...' },
+  { id: 'openrouter', label: 'OpenRouter (API key / OAuth)', placeholder: 'sk-or-...' },
   { id: 'mistral', label: 'Mistral', placeholder: 'mistral-...' },
   { id: 'zai', label: 'Z.AI', placeholder: 'zai-...' },
   { id: 'huggingface', label: 'Hugging Face', placeholder: 'hf_...' },
@@ -64,8 +65,8 @@ export const PROVIDER_OPTIONS: readonly ProviderOption[] = [
 ] as const
 
 /**
- * 默认模型 ID 预设（可「自定义模型 ID」覆盖）。
- * 与 OpenClaw 当前默认/目录一致；无预设的供应商将直接进入自定义模型 ID 输入。
+ * Default model ID presets (overridable via custom model ID).
+ * Matches current OpenClaw defaults/catalog; providers without presets go straight to custom ID input.
  */
 export const MODELS_BY_PROVIDER: Partial<Record<ModelProvider, readonly ModelPreset[]>> = {
   anthropic: [
@@ -76,12 +77,14 @@ export const MODELS_BY_PROVIDER: Partial<Record<ModelProvider, readonly ModelPre
     { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5' },
   ],
   openai: [
+    { id: 'gpt-5.6', label: 'GPT-5.6' },
     { id: 'gpt-5.4', label: 'GPT-5.4' },
     { id: 'gpt-5.4-pro', label: 'GPT-5.4 Pro' },
     { id: 'gpt-5.4-mini', label: 'GPT-5.4 Mini' },
     { id: 'gpt-5.4-nano', label: 'GPT-5.4 Nano' },
   ],
   'openai-codex': [
+    { id: 'gpt-5.6', label: 'GPT-5.6 (Codex)' },
     { id: 'gpt-5.4', label: 'GPT-5.4 (Codex)' },
     { id: 'gpt-5.3-codex', label: 'GPT-5.3 Codex' },
     { id: 'gpt-5.3-codex-spark', label: 'GPT-5.3 Codex Spark' },
@@ -161,7 +164,15 @@ export const MODELS_BY_PROVIDER: Partial<Record<ModelProvider, readonly ModelPre
     { id: 'kimi-k2-thinking-turbo', label: 'Kimi K2 Thinking Turbo' },
   ],
   'kimi-coding': [{ id: 'k2p5', label: 'Kimi Coding K2P5' }],
-  openrouter: [{ id: 'auto', label: 'OpenRouter Auto' }],
+  openrouter: [
+    { id: 'openrouter/auto', label: 'OpenRouter Auto' },
+    { id: 'openrouter/anthropic/claude-sonnet-4-5', label: 'Claude Sonnet 4.5' },
+    { id: 'openrouter/anthropic/claude-opus-4-5', label: 'Claude Opus 4.5' },
+    { id: 'openrouter/openai/gpt-5.4', label: 'GPT-5.4' },
+    { id: 'openrouter/google/gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+    { id: 'openrouter/meta-llama/llama-4-maverick', label: 'Llama 4 Maverick' },
+    { id: 'auto', label: 'auto (short id)' },
+  ],
   mistral: [
     { id: 'mistral-large-latest', label: 'Mistral Large Latest' },
     { id: 'codestral-latest', label: 'Codestral Latest' },

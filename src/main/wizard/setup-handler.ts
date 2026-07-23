@@ -36,6 +36,7 @@ export function sanitizeWizardState(state: WizardState): WizardState {
     modelId: mc.modelId.trim(),
     ...(mc.customProviderId !== undefined ? { customProviderId: mc.customProviderId.trim() } : {}),
     ...(mc.customBaseUrl !== undefined ? { customBaseUrl: mc.customBaseUrl.trim() } : {}),
+    ...(mc.endpointUrl !== undefined ? { endpointUrl: mc.endpointUrl.trim() } : {}),
     ...(mc.cloudflareAccountId !== undefined ? { cloudflareAccountId: mc.cloudflareAccountId.trim() } : {}),
     ...(mc.cloudflareGatewayId !== undefined ? { cloudflareGatewayId: mc.cloudflareGatewayId.trim() } : {}),
   }
@@ -429,6 +430,14 @@ function ensureProviderSeedConfig(config: OpenClawConfig, state: WizardState): v
     ...(seed.authHeader !== undefined ? { authHeader: seed.authHeader } : {}),
     models: [buildDefaultProviderModel(modelId)],
   }
+  // Optional custom endpoint override (proxy / self-hosted / alternate OpenRouter gateway).
+  const endpointOverride = state.modelConfig.endpointUrl?.trim()
+  if (endpointOverride) {
+    config.models.providers[seed.providerId] = {
+      ...(config.models.providers[seed.providerId] ?? {}),
+      baseUrl: endpointOverride,
+    }
+  }
   // Match working openclaw.json: keep apiKey in models.providers.minimax alongside auth-profiles.
   if (provider === 'minimax' && state.modelConfig.apiKey.trim()) {
     config.models.providers[seed.providerId] = {
@@ -506,8 +515,16 @@ function buildOpenClawConfig(state: WizardState): OpenClawConfig {
         ...(s.appToken?.trim() ? { appToken: s.appToken.trim() } : {}),
       }
     }
-    if (ch.selectedChannel === 'whatsapp') {
-      config.channels.whatsapp = { enabled: true }
+    if (ch.whatsapp?.enabled || (ch.whatsapp?.accounts && Object.keys(ch.whatsapp.accounts).length > 0) || ch.selectedChannel === 'whatsapp') {
+      const accounts = ch.whatsapp?.accounts
+      const hasAccounts = accounts && Object.keys(accounts).length > 0
+      config.channels.whatsapp = {
+        enabled: true,
+        ...(ch.whatsapp?.defaultAccount?.trim()
+          ? { defaultAccount: ch.whatsapp.defaultAccount.trim() }
+          : {}),
+        ...(hasAccounts ? { accounts } : {}),
+      }
     }
   }
 
@@ -724,6 +741,17 @@ export function mergeModelIntoOpenClawConfig(
     }
   } else {
     ensureProviderSeedConfig(config, sanitized)
+    const endpointOverride = sanitized.modelConfig.endpointUrl?.trim()
+    if (endpointOverride && providerId) {
+      config.models = config.models ?? {}
+      config.models.mode = config.models.mode ?? 'merge'
+      config.models.providers = config.models.providers ?? {}
+      const existing = (config.models.providers[providerId] ?? {}) as ModelProviderConfig
+      config.models.providers[providerId] = {
+        ...existing,
+        baseUrl: endpointOverride,
+      }
+    }
   }
 
   if (target.kind === 'defaults') {

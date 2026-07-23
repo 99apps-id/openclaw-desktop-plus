@@ -24,7 +24,7 @@ export type UpdateChannel = 'stable' | 'beta'
 
 export type { ShellLocale }
 
-/** Desktop shell settings stored in %APPDATA%\OpenClaw Desktop\config.json */
+/** Desktop shell settings stored in %APPDATA%\OpenClaw Desktop Plus\config.json */
 export interface ShellConfig {
   closeToTray: boolean
   autoStart: boolean
@@ -57,7 +57,7 @@ export interface GatewayControlUiConfig {
   /**
    * When true, loopback Control UI may connect with token/password only if device identity
    * is unavailable (e.g. Electron sandboxed iframe without `crypto.subtle`).
-   * Required for embedded dashboard in OpenClaw Desktop.
+   * Required for embedded dashboard in OpenClaw Desktop Plus.
    */
   allowInsecureAuth?: boolean
   /**
@@ -76,6 +76,18 @@ export interface GatewayControlUiConfig {
 }
 
 /** Gateway config */
+export interface GatewayRemoteConfig {
+  /** WebSocket URL, e.g. ws://127.0.0.1:18789 (SSH tunnel) or ws://host:18789 (direct) */
+  url?: string
+  /** Client token for the remote gateway */
+  token?: string
+  /** Client password when remote uses password auth */
+  password?: string
+  /** How the desktop reaches the remote gateway */
+  transport?: 'direct' | 'ssh'
+}
+
+/** Gateway config */
 export interface GatewayConfig {
   /** Matches upstream doctor: local (desktop shell) or remote */
   mode?: 'local' | 'remote'
@@ -84,6 +96,8 @@ export interface GatewayConfig {
   bind?: 'loopback' | 'lan' | 'auto' | 'tailnet' | 'custom'
   auth?: GatewayAuthConfig
   controlUi?: GatewayControlUiConfig
+  /** Remote client target when `mode` is `remote` */
+  remote?: GatewayRemoteConfig
   /** When true, pass --force on port conflict (aligned with gateway run) */
   forcePortOnConflict?: boolean
 }
@@ -96,9 +110,20 @@ export interface AuthProfileSelection {
 }
 
 /** Auth config (aligned with upstream OpenClaw) */
+export interface AuthCooldownsConfig {
+  /**
+   * How many auth-profile rotations to try on rate-limit before escalating to the next
+   * model in `agents.defaults.model.fallbacks` (upstream default: 1).
+   */
+  rateLimitedProfileRotations?: number
+  [key: string]: unknown
+}
+
+/** Auth config (aligned with upstream OpenClaw) */
 export interface AuthConfig {
   profiles?: Record<string, AuthProfileSelection>
   order?: Record<string, string[]>
+  cooldowns?: AuthCooldownsConfig
 }
 
 /** Default model settings */
@@ -120,6 +145,15 @@ export interface AgentDefaultsConfig {
   /** Optional model alias map (e.g. moonshot/kimi-k2.5) */
   models?: Record<string, AgentModelAlias>
   workspace?: string
+  /**
+   * Vision model when the primary cannot accept images (string or `{ primary, fallbacks }`).
+   * Used for Control UI image attachments and the `image` tool.
+   */
+  imageModel?: string | AgentModelDefaults
+  /**
+   * PDF routing model (string or `{ primary, fallbacks }`). Falls back to imageModel, then session model.
+   */
+  pdfModel?: string | AgentModelDefaults
 }
 
 /** Single agent entry (OpenClaw `agents.list[]`; multi-agent routing) */
@@ -189,11 +223,13 @@ export interface PairingApproveResult {
 
 /** Wizard Telegram channel (aligned with upstream TelegramConfig) */
 export interface TelegramChannelConfig {
+  enabled?: boolean
   botToken?: string
 }
 
 /** Wizard Discord channel (aligned with upstream DiscordConfig) */
 export interface DiscordChannelConfig {
+  enabled?: boolean
   token?: string
 }
 
@@ -205,9 +241,21 @@ export interface SlackChannelConfig {
   appToken?: string
 }
 
-/** Wizard WhatsApp channel (aligned with upstream; Baileys needs Control UI) */
+/** Per-account WhatsApp entry (upstream `channels.whatsapp.accounts.*`) */
+export interface WhatsAppAccountConfig {
+  name?: string
+  enabled?: boolean
+  /** Override Baileys auth directory for this account */
+  authDir?: string
+}
+
+/** Wizard WhatsApp channel (aligned with upstream; QR pairing via Control UI) */
 export interface WhatsAppChannelConfig {
   enabled?: boolean
+  /** Default account id when multiple accounts are configured */
+  defaultAccount?: string
+  /** Multi-number / multi-session accounts (Baileys) */
+  accounts?: Record<string, WhatsAppAccountConfig>
 }
 
 /** Channels keyed by channel name */
@@ -310,6 +358,11 @@ export interface ModelConfig {
   customProviderId?: string
   /** Custom provider: API base URL */
   customBaseUrl?: string
+  /**
+   * Optional API base URL override for any provider (LiteLLM proxy, self-hosted OpenAI-compatible,
+   * custom OpenRouter gateway, etc.). When set, written to `models.providers.<id>.baseUrl`.
+   */
+  endpointUrl?: string
   /** Custom provider: protocol compatibility */
   customCompatibility?: 'openai' | 'anthropic'
   /** Cloudflare AI Gateway: Account ID */
@@ -408,6 +461,10 @@ export interface GatewayStatus {
   pid: number | null
   uptime: number
   status: GatewayStatusValue
+  /** local = bundled process; remote = connect to gateway.remote.url */
+  mode?: 'local' | 'remote'
+  /** Prefers remote HTTP Control UI origin when mode is remote (no #token hash) */
+  controlUrl?: string
 }
 
 // ─── Registry (Skills / Extensions / Commands) ──────────────────────────────

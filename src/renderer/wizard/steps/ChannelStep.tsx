@@ -4,6 +4,7 @@ import { ExternalLink, MessageSquareText } from 'lucide-react'
 import { useWizardStore } from '@/stores/wizard-store'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
+import { Button } from '@/components/ui/button'
 import {
   Select,
   SelectContent,
@@ -412,12 +413,128 @@ export function ChannelStep() {
             )}
           </div>
         ) : activeTab === 'whatsapp' ? (
-          <div className="rounded-md border border-dashed border-border p-4 sm:p-6 flex flex-col items-center gap-2 text-center">
-            <MessageSquareText className="w-6 h-6 text-muted-foreground/50" />
+          <div className="rounded-md border border-primary/20 bg-primary/5 p-3 sm:p-4 space-y-3 sm:space-y-4">
             <p className="text-sm font-medium text-foreground">{t('wizard.channel.whatsapp.title')}</p>
-            <p className="text-xs text-muted-foreground max-w-xs leading-relaxed">
+            <p className="text-xs text-muted-foreground leading-relaxed">
               {t('wizard.channel.whatsapp.description')}
             </p>
+            <label className="inline-flex items-center gap-2 text-sm">
+              <Checkbox
+                checked={channelConfig.whatsapp?.enabled === true}
+                onCheckedChange={(checked) => {
+                  const enabled = checked === true
+                  const prev = channelConfig.whatsapp ?? {}
+                  const accounts = prev.accounts ?? { default: { name: 'Primary', enabled: true } }
+                  setChannelConfig({
+                    whatsapp: {
+                      ...prev,
+                      enabled,
+                      defaultAccount: prev.defaultAccount ?? 'default',
+                      accounts: enabled ? accounts : prev.accounts,
+                    },
+                    skipChannels: false,
+                  })
+                }}
+                disabled={channelConfig.skipChannels}
+              />
+              {t('wizard.channel.whatsapp.enable')}
+            </label>
+            <fieldset className="space-y-1.5">
+              <label htmlFor="wa-default-account" className="text-sm font-medium">
+                {t('wizard.channel.whatsapp.defaultAccount')}
+              </label>
+              <Input
+                id="wa-default-account"
+                value={channelConfig.whatsapp?.defaultAccount ?? 'default'}
+                onChange={(e) =>
+                  setChannelConfig({
+                    whatsapp: {
+                      ...(channelConfig.whatsapp ?? { enabled: true }),
+                      enabled: true,
+                      defaultAccount: e.target.value,
+                      accounts: channelConfig.whatsapp?.accounts ?? {
+                        default: { name: 'Primary', enabled: true },
+                      },
+                    },
+                  })
+                }
+                className="font-mono"
+                disabled={channelConfig.skipChannels || !channelConfig.whatsapp?.enabled}
+              />
+            </fieldset>
+            <div className="space-y-2">
+              <p className="text-sm font-medium">{t('wizard.channel.whatsapp.accounts')}</p>
+              <p className="text-xs text-muted-foreground">{t('wizard.channel.whatsapp.accountsHint')}</p>
+              {Object.entries(channelConfig.whatsapp?.accounts ?? {}).map(([id, acct]) => (
+                <div
+                  key={id}
+                  className="flex flex-wrap items-center gap-2 rounded-md border border-border bg-background px-2 py-2"
+                >
+                  <code className="text-xs font-mono">{id}</code>
+                  <Input
+                    value={acct?.name ?? id}
+                    onChange={(e) => {
+                      const accounts = { ...(channelConfig.whatsapp?.accounts ?? {}) }
+                      accounts[id] = { ...(accounts[id] ?? {}), name: e.target.value, enabled: accounts[id]?.enabled !== false }
+                      setChannelConfig({
+                        whatsapp: {
+                          ...(channelConfig.whatsapp ?? { enabled: true }),
+                          enabled: true,
+                          accounts,
+                        },
+                      })
+                    }}
+                    className="h-8 flex-1 min-w-[8rem]"
+                    disabled={channelConfig.skipChannels || !channelConfig.whatsapp?.enabled}
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive"
+                    disabled={channelConfig.skipChannels || Object.keys(channelConfig.whatsapp?.accounts ?? {}).length <= 1}
+                    onClick={() => {
+                      const accounts = { ...(channelConfig.whatsapp?.accounts ?? {}) }
+                      delete accounts[id]
+                      setChannelConfig({
+                        whatsapp: {
+                          ...(channelConfig.whatsapp ?? { enabled: true }),
+                          accounts,
+                        },
+                      })
+                    }}
+                  >
+                    {t('wizard.channel.whatsapp.removeAccount')}
+                  </Button>
+                </div>
+              ))}
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={channelConfig.skipChannels || !channelConfig.whatsapp?.enabled}
+                onClick={() => {
+                  const accounts = { ...(channelConfig.whatsapp?.accounts ?? {}) }
+                  let n = Object.keys(accounts).length + 1
+                  let id = `account-${n}`
+                  while (accounts[id]) {
+                    n += 1
+                    id = `account-${n}`
+                  }
+                  accounts[id] = { name: id, enabled: true }
+                  setChannelConfig({
+                    whatsapp: {
+                      ...(channelConfig.whatsapp ?? { enabled: true }),
+                      enabled: true,
+                      defaultAccount: channelConfig.whatsapp?.defaultAccount ?? 'default',
+                      accounts,
+                    },
+                  })
+                }}
+              >
+                {t('wizard.channel.whatsapp.addAccount')}
+              </Button>
+            </div>
           </div>
         ) : null}
       </section>

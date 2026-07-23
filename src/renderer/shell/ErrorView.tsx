@@ -71,7 +71,7 @@ export function ErrorView({
         <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center text-destructive">
           <ErrorIcon />
         </div>
-        <h1 className="text-xl font-semibold tracking-tight">OpenClaw Desktop</h1>
+        <h1 className="text-xl font-semibold tracking-tight">OpenClaw Desktop Plus</h1>
       </div>
 
       <div className="flex flex-col items-center gap-2 max-w-sm text-center">

@@ -16,7 +16,7 @@ export interface PlatformInfo {
  */
 export function getPlatformInfo(): PlatformInfo {
   if (process.platform !== 'win32') {
-    throw new Error(`Unsupported platform: ${process.platform}. OpenClaw Desktop requires Windows.`)
+    throw new Error(`Unsupported platform: ${process.platform}. OpenClaw Desktop Plus requires Windows.`)
   }
 
   const release = os.release()

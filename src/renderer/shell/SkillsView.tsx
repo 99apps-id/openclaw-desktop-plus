@@ -75,6 +75,8 @@ export function SkillsView({ onBack }: SkillsViewProps) {
   const [detail, setDetail] = useState<SkillDetailState | null>(null)
   const [reloading, setReloading] = useState(false)
   const [actionFeedback, setActionFeedback] = useState<{ id: string; message: string; type: 'success' | 'error' } | null>(null)
+  const [pluginSpec, setPluginSpec] = useState('')
+  const [installing, setInstalling] = useState(false)
 
   const tabSkillsLabel = t('shell.skillsPanel.tabSkills')
   const tabExtensionsLabel = t('shell.skillsPanel.tabExtensions')
@@ -186,6 +188,31 @@ export function SkillsView({ onBack }: SkillsViewProps) {
             }
           : null
       )
+    }
+  }
+
+  const handleInstallPlugin = async () => {
+    const spec = pluginSpec.trim()
+    if (!spec) return
+    setInstalling(true)
+    try {
+      const res = await window.electronAPI.pluginsInstall(spec)
+      if (res.ok) {
+        setPluginSpec('')
+        showFeedback(
+          res.pluginId ?? spec,
+          t('shell.skillsPanel.installOk', { name: res.pluginId ?? spec }),
+          'success',
+        )
+        await window.electronAPI.registryReload()
+        await loadData()
+      } else {
+        showFeedback(spec, res.message ?? t('shell.skillsPanel.installFailed'), 'error')
+      }
+    } catch (e) {
+      showFeedback(spec, e instanceof Error ? e.message : t('shell.skillsPanel.installFailed'), 'error')
+    } finally {
+      setInstalling(false)
     }
   }
 
@@ -431,6 +458,32 @@ export function SkillsView({ onBack }: SkillsViewProps) {
             {error}
           </div>
         )}
+
+        <div className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-muted-foreground leading-relaxed">
+          {t('shell.skillsPanel.stripNotice')}
+        </div>
+
+        <section className="rounded-lg border border-border p-3 space-y-2">
+          <p className="text-sm font-medium">{t('shell.skillsPanel.installTitle')}</p>
+          <p className="text-xs text-muted-foreground">{t('shell.skillsPanel.installDesc')}</p>
+          <div className="flex gap-2">
+            <Input
+              value={pluginSpec}
+              onChange={(e) => setPluginSpec(e.target.value)}
+              placeholder={t('shell.skillsPanel.installPlaceholder')}
+              className="font-mono text-xs"
+            />
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => void handleInstallPlugin()}
+              disabled={installing || !pluginSpec.trim()}
+            >
+              {installing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Package className="w-3.5 h-3.5" />}
+              <span className="ml-1">{t('shell.skillsPanel.install')}</span>
+            </Button>
+          </div>
+        </section>
 
         {actionFeedback && (
           <div

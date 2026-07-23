@@ -29,7 +29,7 @@ const BUILD_NODE_MARKER = join(PROJECT_ROOT, 'build', 'node', '.node-version')
 const RES_NODE_MARKER = join(PROJECT_ROOT, 'resources', 'node', '.node-version')
 
 /** Sync with scripts/download-node.ts DEFAULT_VERSION and .github/workflows/release.yml NODE_VERSION_CI */
-const BUNDLED_NODE_VERSION = '22.16.0'
+const BUNDLED_NODE_VERSION = '22.23.1'
 const EXPECTED_NODE_TAG = `v${BUNDLED_NODE_VERSION}`
 
 async function fileExists(p: string): Promise<boolean> {

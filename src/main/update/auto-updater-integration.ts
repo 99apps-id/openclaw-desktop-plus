@@ -14,7 +14,7 @@ import {
 import { IPC_UPDATE_AVAILABLE, IPC_UPDATE_PROGRESS } from '../../shared/ipc-channels.js'
 import type { UpdateCheckResult } from '../../shared/types.js'
 
-const GITHUB_REPO_RELEASES = 'https://github.com/agentkernel/openclaw-desktop/releases'
+const GITHUB_REPO_RELEASES = 'https://github.com/99apps-id/openclaw-desktop-plus/releases'
 
 function releaseNotesFromUpdateInfo(info: UpdateInfo): string | undefined {
   const n = info.releaseNotes

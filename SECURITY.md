@@ -1,19 +1,17 @@
 # Security Policy
 
-## Supported Versions
+## Supported versions
 
-Security fixes are provided on a best-effort basis for the latest public release series.
+Security fixes are provided on a best-effort basis for the latest public release of **OpenClaw Desktop Plus**.
 
-## Reporting a Vulnerability
+## Reporting a vulnerability
 
-If you discover a security issue in `OpenClaw Desktop`, please avoid opening a public issue with exploit details.
+If you find a security issue in this project, **do not** open a public issue with exploit details.
 
-Instead:
-
-1. Prepare a minimal description of the problem and impact.
-2. Include reproduction steps if they are safe to share privately.
-3. Contact the maintainer through the repository owner profile or a private channel before public disclosure.
+1. Describe the problem and impact briefly.
+2. Include safe reproduction steps if possible.
+3. Contact maintainers privately via the [repository](https://github.com/99apps-id/openclaw-desktop-plus) owner profile or a private channel before disclosure.
 
 ## Scope
 
-This repository is a community-maintained Windows desktop distribution for OpenClaw. Vulnerabilities that originate in the upstream `OpenClaw` project may need to be reported to the upstream maintainers as well.
+This repo is a community Windows distribution for OpenClaw. Issues that originate in upstream OpenClaw should also be reported to the [upstream project](https://github.com/openclaw/openclaw).

@@ -10,7 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { getProviderAuthMode, requiresApiKey } from '@/utils/provider-auth'
+import { getProviderAuthMode, requiresApiKey, supportsOAuthLogin } from '@/utils/provider-auth'
 import {
   Eye,
   EyeOff,
@@ -53,6 +53,8 @@ export function ModelStep() {
     status: 'idle',
     message: '',
   })
+  const [oauthBusy, setOauthBusy] = useState(false)
+  const [oauthMessage, setOauthMessage] = useState('')
   const [useCustomModel, setUseCustomModel] = useState(() => {
     const presets = MODELS_BY_PROVIDER[modelConfig.provider]
     if (!presets) return true
@@ -77,6 +79,7 @@ export function ModelStep() {
         customProviderId: provider === 'custom' ? modelConfig.customProviderId ?? '' : '',
         customBaseUrl: provider === 'custom' ? modelConfig.customBaseUrl ?? '' : '',
         customCompatibility: provider === 'custom' ? modelConfig.customCompatibility ?? 'openai' : undefined,
+        endpointUrl: provider === 'custom' ? '' : modelConfig.endpointUrl ?? '',
         cloudflareAccountId: provider === 'cloudflare-ai-gateway' ? modelConfig.cloudflareAccountId ?? '' : '',
         cloudflareGatewayId: provider === 'cloudflare-ai-gateway' ? modelConfig.cloudflareGatewayId ?? '' : '',
       })
@@ -89,6 +92,7 @@ export function ModelStep() {
       modelConfig.customBaseUrl,
       modelConfig.customCompatibility,
       modelConfig.customProviderId,
+      modelConfig.endpointUrl,
       modelConfig.moonshotRegion,
       setModelConfig,
     ],
@@ -127,6 +131,22 @@ export function ModelStep() {
       })
     }
   }, [modelConfig, t])
+
+  const handleOAuthLogin = useCallback(async () => {
+    setOauthBusy(true)
+    setOauthMessage('')
+    try {
+      const result = await window.electronAPI.modelsAuthLogin({
+        provider: modelConfig.provider,
+        method: 'oauth',
+      })
+      setOauthMessage(result.message)
+    } catch (err) {
+      setOauthMessage(err instanceof Error ? err.message : String(err))
+    } finally {
+      setOauthBusy(false)
+    }
+  }, [modelConfig.provider])
 
   const canTest =
     modelConfig.provider &&
@@ -338,7 +358,25 @@ export function ModelStep() {
             )}
           </button>
         </div>
-        {authMode === 'oauth' && (
+        {supportsOAuthLogin(modelConfig.provider) && (
+          <div className="flex flex-col gap-1.5 pt-1">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="w-fit"
+              disabled={oauthBusy}
+              onClick={() => void handleOAuthLogin()}
+            >
+              {oauthBusy ? t('wizard.model.oauthSigningIn') : t('wizard.model.oauthSignIn')}
+            </Button>
+            {oauthMessage && (
+              <p className="text-xs text-muted-foreground">{oauthMessage}</p>
+            )}
+            <p className="text-xs text-muted-foreground">{t('wizard.model.oauthHint')}</p>
+          </div>
+        )}
+        {authMode === 'oauth' && !supportsOAuthLogin(modelConfig.provider) && (
           <p className="text-xs text-muted-foreground">
             {t('wizard.model.oauthHint')}
           </p>
@@ -348,12 +386,34 @@ export function ModelStep() {
             {t('wizard.model.noKeyHint')}
           </p>
         )}
-        {(authMode === 'api_key' || authMode === 'optional') && (
+        {(authMode === 'api_key' || authMode === 'optional' || authMode === 'oauth_or_api_key') && (
           <p className="text-xs text-muted-foreground">
             {t('wizard.model.apiKeyStored')}
           </p>
         )}
       </fieldset>
+
+      {/* Custom API endpoint override (any non-custom provider) */}
+      {modelConfig.provider !== 'custom' && (
+        <fieldset className="space-y-1.5">
+          <label htmlFor="endpoint-url" className="text-sm font-medium">
+            {t('wizard.model.endpointUrl')}
+          </label>
+          <Input
+            id="endpoint-url"
+            type="url"
+            value={modelConfig.endpointUrl ?? ''}
+            onChange={(e) => {
+              setModelConfig({ endpointUrl: e.target.value })
+              setTestState({ status: 'idle', message: '' })
+            }}
+            placeholder={t('wizard.model.endpointUrlPlaceholder')}
+            className="font-mono"
+            autoComplete="off"
+          />
+          <p className="text-xs text-muted-foreground">{t('wizard.model.endpointUrlHint')}</p>
+        </fieldset>
+      )}
 
       {/* Custom Provider Settings */}
       {modelConfig.provider === 'custom' && (

@@ -62,11 +62,9 @@ export async function patchOpenClawUiViteForElectronLitDecorators(uiDir: string)
   if (!(await fileExists(viteConfigPath))) {
     return
   }
-  const raw = await readFile(viteConfigPath, 'utf8')
-  if (raw.includes(VITE_PATCH_SENTINEL)) {
-    return
-  }
-  const insertion = `// ${VITE_PATCH_SENTINEL}: Lit field decorators need legacy TS emit in Electron
+  let raw = await readFile(viteConfigPath, 'utf8')
+  if (!raw.includes(VITE_PATCH_SENTINEL)) {
+    const insertion = `// ${VITE_PATCH_SENTINEL}: Lit field decorators need legacy TS emit in Electron
   return {
     esbuild: {
       tsconfigRaw: {
@@ -76,16 +74,36 @@ export async function patchOpenClawUiViteForElectronLitDecorators(uiDir: string)
         },
       },
     },`
-  const patched = raw.replace(/return\s*\{/, insertion)
-  if (patched === raw) {
-    throw new Error(`patch-openclaw-ui: no "return {" found in ${viteConfigPath}`)
+    const patched = raw.replace(/return\s*\{/, insertion)
+    if (patched === raw) {
+      throw new Error(`patch-openclaw-ui: no "return {" found in ${viteConfigPath}`)
+    }
+    raw = patched
   }
-  await writeFile(viteConfigPath, patched, 'utf8')
+
+  // Upstream aliases `@openclaw/uirouter` + `@openclaw/libterminal/browser` into the OpenClaw repo
+  // root `node_modules`. Standalone desktop builds install those under `ui/node_modules`; resolving
+  // from the repo root breaks transitive deps (e.g. libterminal → ghostty-web).
+  const ALIAS_SENTINEL = 'openclaw-desktop-ui-node-modules-aliases'
+  if (!raw.includes(ALIAS_SENTINEL) && raw.includes('resolveExternalPackageAliasesForVite')) {
+    raw = raw.replace(
+      /repoRoot,\s*\n\s*"node_modules",\s*\n\s*"@openclaw",\s*\n\s*"libterminal",/g,
+      `here, // ${ALIAS_SENTINEL}\n        "node_modules",\n        "@openclaw",\n        "libterminal",`,
+    )
+    raw = raw.replace(
+      /path\.join\(repoRoot,\s*"node_modules",\s*"@openclaw",\s*"uirouter",\s*"dist",\s*"index\.js"\)/g,
+      `path.join(here, "node_modules", "@openclaw", "uirouter", "dist", "index.js") /* ${ALIAS_SENTINEL} */`,
+    )
+  }
+
+  await writeFile(viteConfigPath, raw, 'utf8')
 }
 
 /** Call after copying OpenClaw ui/ from GitHub, before npm install + vite build. */
 export async function applyOpenClawUiLitDecoratorCompatPatches(uiDir: string): Promise<void> {
   await mergeUiTsconfig(uiDir)
   await patchOpenClawUiViteForElectronLitDecorators(uiDir)
-  console.log('  [control-ui] applied Lit/Electron decorator compat (tsconfig + vite esbuild tsconfigRaw)')
+  console.log(
+    '  [control-ui] applied Lit/Electron decorator compat (tsconfig + vite esbuild tsconfigRaw + ui aliases)',
+  )
 }

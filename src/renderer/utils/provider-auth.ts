@@ -1,13 +1,14 @@
 import type { ModelProvider } from '../../shared/types'
 
-export type ProviderAuthMode = 'api_key' | 'oauth' | 'none' | 'optional'
+export type ProviderAuthMode = 'api_key' | 'oauth' | 'oauth_or_api_key' | 'none' | 'optional'
 
 const AUTH_MODE_BY_PROVIDER: Record<ModelProvider, ProviderAuthMode> = {
   anthropic: 'api_key',
   openai: 'api_key',
   'openai-codex': 'oauth',
   google: 'api_key',
-  openrouter: 'api_key',
+  /** OpenRouter supports API key and PKCE OAuth (often called “nesarouter” informally). */
+  openrouter: 'oauth_or_api_key',
   opencode: 'api_key',
   mistral: 'api_key',
   minimax: 'api_key',
@@ -53,5 +54,10 @@ export function getProviderAuthMode(provider: ModelProvider): ProviderAuthMode {
 
 export function requiresApiKey(provider: ModelProvider): boolean {
   const mode = getProviderAuthMode(provider)
-  return mode === 'api_key' || mode === 'optional'
+  return mode === 'api_key' || mode === 'optional' || mode === 'oauth_or_api_key'
+}
+
+export function supportsOAuthLogin(provider: ModelProvider): boolean {
+  const mode = getProviderAuthMode(provider)
+  return mode === 'oauth' || mode === 'oauth_or_api_key'
 }

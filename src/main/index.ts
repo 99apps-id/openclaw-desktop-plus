@@ -2,7 +2,7 @@ import { app, dialog, Menu, Notification, nativeImage, session, screen } from 'e
 import fs from 'node:fs'
 import path from 'node:path'
 import { IPC_GATEWAY_LOG, IPC_GATEWAY_STATUS_CHANGE, IPC_STREAM_GATEWAY_LOGS, IPC_UPDATE_AVAILABLE } from '../shared/ipc-channels.js'
-import { APP_NAME, DEFAULT_GATEWAY_PORT, OPENCLAW_CONFIG_FILE } from '../shared/constants.js'
+import { APP_ID, APP_NAME, DEFAULT_GATEWAY_PORT, OPENCLAW_CONFIG_FILE } from '../shared/constants.js'
 import { getLogAggregator, runPrestartCheck } from './diagnostics/index.js'
 import {
   readOpenClawConfig,
@@ -77,7 +77,18 @@ const trayManager = new TrayManager({
   onOpenAbout: () => windowManager.showShellRoute('#about'),
   onOpenUpdates: () => windowManager.showShellRoute('#updates'),
   onRestartGateway: async () => {
-    await gatewayManager.restart()
+    const cfg = readOpenClawConfig()
+    if (cfg?.gateway?.mode === 'remote') {
+      await gatewayManager.applyRemoteFromConfig(cfg)
+      return
+    }
+    const gw = cfg?.gateway
+    await gatewayManager.restart({
+      port: gw?.port ?? DEFAULT_GATEWAY_PORT,
+      bind: gw?.bind ?? 'loopback',
+      token: gw?.auth?.token?.trim() || undefined,
+      force: Boolean(gw?.forcePortOnConflict),
+    })
   },
   onQuit: () => {
     app.quit()
@@ -135,7 +146,7 @@ async function cleanupBeforeQuit(): Promise<void> {
 
 app.whenReady().then(() => {
   if (process.platform === 'win32') {
-    app.setAppUserModelId('OpenClaw.Desktop')
+    app.setAppUserModelId(APP_ID)
   }
 
   // Uninstaller: --clear-login-item (called from NSIS) removes login item
@@ -317,6 +328,7 @@ app.whenReady().then(() => {
     refreshTrayMenu: () => {
       trayManager.refreshMenu()
     },
+    getMainWindow: () => windowManager.getMainWindow(),
   })
 
   // 4. Main window (packaged: loadFile from asar.unpacked renderer to avoid blank screen)
@@ -384,7 +396,7 @@ app.whenReady().then(() => {
           if (!Notification.isSupported()) {
             if (!loggedFeishuPairingNotificationUnsupported) {
               loggedFeishuPairingNotificationUnsupported = true
-              logWarn('[Feishu pairing] system notifications are not supported in this environment; use 飞书设置 to approve.')
+              logWarn('[Feishu pairing] system notifications are not supported in this environment; use Feishu Settings to approve.')
             }
             continue
           }
@@ -438,13 +450,19 @@ app.whenReady().then(() => {
   if (openclawConfigExists()) {
     const cfg = readOpenClawConfig()
     const gw = cfg?.gateway
-    const port = gw?.port ?? DEFAULT_GATEWAY_PORT
-    const bind = gw?.bind ?? 'loopback'
-    const token = gw?.auth?.token?.trim()
-    const force = Boolean(gw?.forcePortOnConflict)
-    void gatewayManager.start({ port, bind, token: token || undefined, force }).catch((err) => {
-      logError(`[OpenClaw] Failed to auto-start Gateway: ${err instanceof Error ? err.message : String(err)}`)
-    })
+    if (gw?.mode === 'remote') {
+      void gatewayManager.applyRemoteFromConfig(cfg).catch((err) => {
+        logError(`[OpenClaw] Failed to attach remote Gateway: ${err instanceof Error ? err.message : String(err)}`)
+      })
+    } else {
+      const port = gw?.port ?? DEFAULT_GATEWAY_PORT
+      const bind = gw?.bind ?? 'loopback'
+      const token = gw?.auth?.token?.trim()
+      const force = Boolean(gw?.forcePortOnConflict)
+      void gatewayManager.start({ port, bind, token: token || undefined, force }).catch((err) => {
+        logError(`[OpenClaw] Failed to auto-start Gateway: ${err instanceof Error ? err.message : String(err)}`)
+      })
+    }
   } else {
     const configPath = path.join(getUserDataDir(), OPENCLAW_CONFIG_FILE)
     logWarn(`[OpenClaw] openclaw.json not found at ${configPath}; Gateway will not auto-start. Complete the setup wizard first.`)

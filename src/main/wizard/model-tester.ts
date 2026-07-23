@@ -114,6 +114,27 @@ function joinBaseUrl(baseUrl: string, pathSuffix: string): string {
   return `${trimmed}${pathSuffix}`
 }
 
+/** Rewrite a full provider URL to use an optional custom base (proxy / self-hosted). */
+function applyEndpointOverride(url: string, endpointUrl: string | undefined): string {
+  const ep = endpointUrl?.trim()
+  if (!ep) return url
+  const cleaned = ep.replace(/\/+$/, '')
+  if (/\/(chat\/completions|messages|generateContent)$/i.test(cleaned)) {
+    return cleaned
+  }
+  try {
+    const orig = new URL(url)
+    if (/\/v1$/i.test(cleaned)) {
+      if (orig.pathname.includes('/messages')) return joinBaseUrl(cleaned, '/messages')
+      if (orig.pathname.includes('/chat/completions')) return joinBaseUrl(cleaned, '/chat/completions')
+    }
+    const base = new URL(cleaned.endsWith('/') ? cleaned : `${cleaned}/`)
+    return new URL(orig.pathname.replace(/^\//, ''), base).toString() + orig.search
+  } catch {
+    return joinBaseUrl(cleaned, '/chat/completions')
+  }
+}
+
 function buildCustomProviderConfig(
   baseUrl: string,
   compatibility: 'openai' | 'anthropic',
@@ -220,8 +241,12 @@ async function runTestRequest(
       url = 'https://api.moonshot.cn/v1/chat/completions'
     }
 
-    if (config.provider === 'google') {
+    url = applyEndpointOverride(url, config.endpointUrl)
+
+    if (config.provider === 'google' && !config.endpointUrl?.trim()) {
       url += `?key=${encodeURIComponent(config.apiKey)}`
+    } else if (config.provider === 'google' && config.endpointUrl?.trim() && !url.includes('key=')) {
+      url += (url.includes('?') ? '&' : '?') + `key=${encodeURIComponent(config.apiKey)}`
     }
 
     const response = await fetch(url, {

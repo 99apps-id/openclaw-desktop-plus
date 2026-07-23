@@ -17,6 +17,8 @@ const VALID_HASH_PANELS = new Set<string>([
   'skills',
   'updates',
   'feishu-settings',
+  'models',
+  'channels',
 ])
 
 /** Map legacy hashes and drop unknown fragments (e.g. pasted gateway #token=…) so we don't open a bogus “panel”. */
@@ -66,7 +68,7 @@ function App() {
     setRoute(panel)
   }, [])
 
-  /** Native title + document.title: wizard uses app name only (no「设置向导」in title bar). */
+  /** Native title + document.title: wizard uses app name only (no "Setup Wizard" in the title bar). */
   useEffect(() => {
     if (route === null || configExists === null) {
       syncNativeWindowTitle(t('app.name'))
@@ -86,6 +88,8 @@ function App() {
         skills: t('shell.skillsPanel.title'),
         updates: t('shell.updates.title'),
         'feishu-settings': t('shell.feishu.title'),
+        models: t('shell.models.title'),
+        channels: t('shell.channels.title'),
       }
       const segment = panelTitles[route] ?? t('shell.dashboard.title')
       syncNativeWindowTitle(`${segment} - ${t('app.name')}`)
@@ -114,7 +118,9 @@ function App() {
       route === 'llm-api' ||
       route === 'skills' ||
       route === 'updates' ||
-      route === 'feishu-settings'
+      route === 'feishu-settings' ||
+      route === 'models' ||
+      route === 'channels'
         ? route
         : ''
     return <EmbeddedShellLayout activePanel={panel} onPanelChange={handlePanelChange} />

@@ -1,9 +1,9 @@
 {
-  "name": "openclaw-desktop",
-  "version": "0.7.0+openclaw.2026.4.2",
-  "openclawBundleVersion": "2026.4.2",
+  "name": "openclaw-desktop-plus",
+  "version": "0.8.0+openclaw.2026.7.1-2",
+  "openclawBundleVersion": "2026.7.1-2",
   "openclawFeishuLarkSdkVersion": "^1.60.0",
-  "description": "Community-maintained Windows desktop app and installer for OpenClaw.",
+  "description": "OpenClaw Desktop Plus — community Windows desktop app and installer for OpenClaw.",
   "type": "module",
   "main": "out/main/index.js",
   "scripts": {
@@ -12,7 +12,6 @@
     "preview": "electron-vite preview",
     "lint": "eslint .",
     "type-check": "tsc --noEmit",
-    "i18n:zh-tw": "node scripts/generate-zh-tw.mjs",
     "download-node": "tsx scripts/download-node.ts",
     "download-openclaw": "tsx scripts/download-openclaw.ts",
     "package:prepare-deps": "pnpm run download-node && pnpm run download-openclaw",
@@ -71,7 +70,6 @@
     "eslint": "^9.17.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
-    "opencc-js": "^1.0.5",
     "sharp": "^0.34.5",
     "tailwindcss": "^4.0.0",
     "to-ico": "^1.1.5",
@@ -90,23 +88,27 @@
   "keywords": [
     "openclaw",
     "openclaw-desktop",
+    "openclaw-desktop-plus",
     "openclaw-windows",
     "openclaw-installer",
     "electron",
     "windows",
     "ai-agent"
   ],
-  "homepage": "https://github.com/agentkernel/openclaw-desktop",
-  "author": "wurongzhao@AgentKernel",
+  "homepage": "https://github.com/99apps-id/openclaw-desktop-plus",
+  "author": {
+    "name": "99apps.id",
+    "email": "iwan@99apps.id"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/agentkernel/openclaw-desktop.git"
+    "url": "https://github.com/99apps-id/openclaw-desktop-plus.git"
   },
   "bugs": {
-    "url": "https://github.com/agentkernel/openclaw-desktop/issues"
+    "url": "https://github.com/99apps-id/openclaw-desktop-plus/issues"
   },
   "license": "GPL-3.0",
   "engines": {
-    "node": ">=22.16.0"
+    "node": ">=22.22.3"
   }
 }

@@ -28,7 +28,7 @@ import { runBackupCreateCli } from '../backup/index.js'
 import { getUserDataDir } from '../utils/paths.js'
 import { writePostUpdateMarker } from './post-update-validation.js'
 
-const GITHUB_REPO = 'agentkernel/openclaw-desktop'
+const GITHUB_REPO = '99apps-id/openclaw-desktop-plus'
 const MAX_BACKUPS_KEEP = 1
 const GITHUB_API_BASE = 'https://api.github.com'
 
@@ -63,7 +63,7 @@ function normalizeVersion(tag: string): string {
 }
 
 /**
- * Shell versions use semver plus build metadata (e.g. `0.7.0+openclaw.2026.4.2`).
+ * Shell versions use semver plus build metadata (e.g. `0.8.0+openclaw.2026.7.1-2`).
  * Semver ignores build metadata for precedence; we tie-break with a full string compare.
  * Returns negative if a is older than b.
  */
@@ -103,7 +103,7 @@ function pickWindowsSetupAsset(
 function githubApiHeaders(): HeadersInit {
   const headers: Record<string, string> = {
     Accept: 'application/vnd.github.v3+json',
-    'User-Agent': 'openclaw-desktop-updater (https://github.com/agentkernel/openclaw-desktop)',
+    'User-Agent': 'openclaw-desktop-updater (https://github.com/99apps-id/openclaw-desktop-plus)',
   }
   const token = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN
   if (token) {

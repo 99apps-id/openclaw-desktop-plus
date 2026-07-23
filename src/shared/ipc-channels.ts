@@ -164,6 +164,12 @@ export const IPC_MODELS_SET_FALLBACKS = 'models:setFallbacks' as const
 /** Models: set aliases */
 export const IPC_MODELS_SET_ALIASES = 'models:setAliases' as const
 
+/** Models: auth login (OAuth / API key via bundled CLI) */
+export const IPC_MODELS_AUTH_LOGIN = 'models:authLogin' as const
+
+/** Apply gateway.mode + gateway.remote and reconnect (local start or remote attach) */
+export const IPC_GATEWAY_APPLY_CONNECTION = 'gateway:applyConnection' as const
+
 /** Plugins list (CLI proxy) */
 export const IPC_PLUGINS_LIST = 'plugins:list' as const
 
@@ -196,6 +202,9 @@ export const IPC_PAIRING_APPROVE = 'pairing:approve' as const
 
 /** Pairing: remove approved open_id */
 export const IPC_PAIRING_REMOVE_APPROVED = 'pairing:removeApproved' as const
+
+/** Chat: native file picker → inject attachments into Control UI composer */
+export const IPC_CHAT_PICK_ATTACHMENTS = 'chat:pickAttachments' as const
 
 // ─── Events (ipcRenderer.on / webContents.send) ───────────────────────────────
 
@@ -269,6 +278,8 @@ export const IPC_INVOKE_CHANNELS = [
   IPC_MODELS_SET_DEFAULT,
   IPC_MODELS_SET_FALLBACKS,
   IPC_MODELS_SET_ALIASES,
+  IPC_MODELS_AUTH_LOGIN,
+  IPC_GATEWAY_APPLY_CONNECTION,
   IPC_PLUGINS_LIST,
   IPC_PLUGINS_TOGGLE,
   IPC_PLUGINS_INSTALL,
@@ -280,6 +291,7 @@ export const IPC_INVOKE_CHANNELS = [
   IPC_PAIRING_LIST_APPROVED,
   IPC_PAIRING_APPROVE,
   IPC_PAIRING_REMOVE_APPROVED,
+  IPC_CHAT_PICK_ATTACHMENTS,
 ] as const
 
 /** All event channels */

@@ -3,17 +3,14 @@
  */
 import { APP_NAME } from './constants.js'
 
-export const SHELL_SUPPORTED_LOCALES = ['en', 'zh-CN', 'zh-TW', 'fr', 'ja', 'ko', 'es'] as const
+export const SHELL_SUPPORTED_LOCALES = ['en', 'fr', 'ja', 'ko', 'es'] as const
 
 export type ShellLocale = (typeof SHELL_SUPPORTED_LOCALES)[number]
 
 /** Follow OS / Electron locale string → supported shell locale */
 export function normalizeToShellLocale(electronLocale: string): ShellLocale {
   const lower = electronLocale.toLowerCase()
-  if (lower.startsWith('zh')) {
-    if (lower.includes('tw') || lower.includes('hk') || lower.includes('hant')) return 'zh-TW'
-    return 'zh-CN'
-  }
+  // Chinese (and any unsupported locale) falls back to English.
   if (lower.startsWith('fr')) return 'fr'
   if (lower.startsWith('ja')) return 'ja'
   if (lower.startsWith('ko')) return 'ko'
@@ -25,9 +22,6 @@ export function normalizeToShellLocale(electronLocale: string): ShellLocale {
 }
 
 /** Native window title before renderer paints (bootstrap / errors) */
-export function getLocalizedShellWindowTitle(locale: ShellLocale): string {
-  if (locale === 'zh-CN' || locale === 'zh-TW') {
-    return 'OpenClaw 桌面版'
-  }
+export function getLocalizedShellWindowTitle(_locale: ShellLocale): string {
   return APP_NAME
 }

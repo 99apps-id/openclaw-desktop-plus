@@ -74,14 +74,14 @@ const iconIcoPath = path.join(__dirname, 'resources', 'icon.ico')
 const fastInstallerMode = process.env.OPENCLAW_FAST_INSTALLER !== '0'
 
 module.exports = {
-  appId: 'com.openclaw.desktop',
-  productName: 'OpenClaw Desktop',
-  copyright: 'Copyright © 2026 wurongzhao@AgentKernel',
+  appId: 'com.openclaw.desktop-plus',
+  productName: 'OpenClaw Desktop Plus',
+  copyright: 'Copyright © 2026 99apps.id',
 
   publish: {
     provider: 'github',
-    owner: 'agentkernel',
-    repo: 'openclaw-desktop',
+    owner: '99apps-id',
+    repo: 'openclaw-desktop-plus',
     vPrefixedTagName: true,
     releaseType: 'release',
   },
@@ -135,7 +135,7 @@ module.exports = {
   win: {
     target: [{ target: 'nsis', arch: ['x64'] }],
     icon: iconIcoPath,
-    artifactName: 'OpenClaw-Setup-${version}.${ext}',
+    artifactName: 'OpenClaw-Desktop-Plus-Setup-${version}.${ext}',
     // true = rcedit embeds icon; false skips rcedit (no winCodeSign fetch) — icon missing
     // Without CSC_LINK only resource edit runs, not signing
     // SKIP_EXE_RESOURCE_EDIT=1 skips edit when mirrors are unreachable
@@ -150,11 +150,11 @@ module.exports = {
     oneClick: false,
     perMachine: false,
     allowToChangeInstallationDirectory: true,
-    // 安装程序启动时显示语言选择（向导 UI 多语言）
+    // Show language selector on installer start (English wizard UI)
     displayLanguageSelector: true,
     multiLanguageInstaller: true,
-    installerLanguages: ['en_US', 'zh_CN', 'zh_TW'],
-    // 许可协议页固定为英文单文件（须为 UTF-8 带 BOM，NSIS 才能正确显示）
+    installerLanguages: ['en_US'],
+    // License page: single English file (UTF-8 with BOM required for NSIS display)
     license: 'resources/installer/license.txt',
     // Use zip container for faster extraction on large bundled resources.
     useZip: fastInstallerMode,
@@ -165,7 +165,7 @@ module.exports = {
     installerSidebar: 'resources/installer/installer-sidebar.bmp',
     createDesktopShortcut: true,
     createStartMenuShortcut: true,
-    shortcutName: 'OpenClaw Desktop',
+    shortcutName: 'OpenClaw Desktop Plus',
     runAfterFinish: true,
     deleteAppDataOnUninstall: false,
     // Repo must ship build/installer.nsh (.gitignore exception) — NSIS fails if missing

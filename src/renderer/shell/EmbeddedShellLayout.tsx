@@ -1,14 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import {
-  Settings,
-  Info,
-  Key,
-  Puzzle,
-  RefreshCw,
-  LayoutDashboard,
-  ChevronLeft,
-} from 'lucide-react'
+import { Settings, Info, Key, Puzzle, RefreshCw, LayoutDashboard, Cpu, Radio, ChevronLeft, Paperclip } from 'lucide-react'
 import { LoadingView } from './LoadingView'
 import { ErrorView, type ErrorType } from './ErrorView'
 import { SettingsView } from './SettingsView'
@@ -18,6 +10,8 @@ import { ProviderView } from './ProviderView'
 import { SkillsView } from './SkillsView'
 import { UpdateView } from './UpdateView'
 import { FeishuAccessView } from './FeishuAccessView'
+import { ChannelsView } from './ChannelsView'
+import { ModelsView, QuickModelChip } from './ModelsView'
 import type { GatewayStatus, GatewayStatusValue } from '../../shared/types'
 import { useUpdateNoticeStore } from '@/stores/update-store'
 
@@ -45,22 +39,36 @@ export type EmbeddedPanel =
   | 'skills'
   | 'updates'
   | 'feishu-settings'
+  | 'models'
+  | 'channels'
 
 export interface EmbeddedShellLayoutProps {
   activePanel: EmbeddedPanel
   onPanelChange: (panel: EmbeddedPanel) => void
 }
 
-function buildControlUIUrl(port: number, token?: string): string {
-  let url = `http://127.0.0.1:${port}/`
+function buildControlUIUrl(port: number, token?: string, path = ''): string {
+  const trimmed = path.trim()
+  const basePath = !trimmed || trimmed === '/' ? '/' : trimmed.startsWith('/') ? trimmed : `/${trimmed}`
+  let url = `http://127.0.0.1:${port}${basePath}`
   if (token && typeof token === 'string' && token.trim()) {
     url = `${url}#token=${encodeURIComponent(token.trim())}`
   }
   return url
 }
 
+function appendTokenHash(baseUrl: string, token?: string): string {
+  const cleaned = baseUrl.replace(/#.*$/, '')
+  if (token && token.trim()) {
+    return `${cleaned}#token=${encodeURIComponent(token.trim())}`
+  }
+  return cleaned
+}
+
 const DESKTOP_NAV_ITEMS: { id: EmbeddedPanel; label: string; icon: React.ReactNode; description: string }[] = [
   { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" />, description: 'Gateway status & versions' },
+  { id: 'models', label: 'Models', icon: <Cpu className="w-4 h-4" />, description: 'Default model & provider' },
+  { id: 'channels', label: 'Channels', icon: <Radio className="w-4 h-4" />, description: 'WhatsApp, Telegram, Feishu…' },
   { id: 'llm-api', label: 'LLM API', icon: <Key className="w-4 h-4" />, description: 'Providers & auth profiles' },
   { id: 'skills', label: 'Skills', icon: <Puzzle className="w-4 h-4" />, description: 'Skills & extensions' },
   { id: 'updates', label: 'Updates', icon: <RefreshCw className="w-4 h-4" />, description: 'Check for updates' },
@@ -78,6 +86,11 @@ export function EmbeddedShellLayout({ activePanel, onPanelChange }: EmbeddedShel
   const [controlUrl, setControlUrl] = useState<string | null>(null)
   /** Bumps when the gateway process restarts so the iframe remounts and opens a fresh WebSocket (same #token URL would otherwise not reload). */
   const [controlUiReloadKey, setControlUiReloadKey] = useState(0)
+  const [controlUiLoadError, setControlUiLoadError] = useState(false)
+  const [attachBusy, setAttachBusy] = useState(false)
+  const [attachBanner, setAttachBanner] = useState<string | null>(null)
+  const controlUiPathRef = useRef('')
+  const gatewayAuthTokenRef = useRef<string | undefined>(undefined)
   const prevGatewayStatusRef = useRef<GatewayStatusValue | null>(null)
   const lastRunningPidRef = useRef<number | null>(null)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -140,17 +153,46 @@ export function EmbeddedShellLayout({ activePanel, onPanelChange }: EmbeddedShel
                 setTimeout(() => resolve(undefined), 10_000)
               }),
             ])
-            const token = config?.gateway?.auth?.token
-            const url = buildControlUIUrl(port, token)
+            const remoteToken =
+              status.mode === 'remote'
+                ? config?.gateway?.remote?.token
+                : undefined
+            const localToken = config?.gateway?.auth?.token
+            const token =
+              (typeof remoteToken === 'string' && remoteToken.trim()
+                ? remoteToken
+                : typeof localToken === 'string'
+                  ? localToken
+                  : undefined) || undefined
+            gatewayAuthTokenRef.current = token
+            const url =
+              status.mode === 'remote' && status.controlUrl
+                ? appendTokenHash(
+                    status.controlUrl.replace(/\/$/, '') +
+                      (controlUiPathRef.current
+                        ? controlUiPathRef.current.startsWith('/')
+                          ? controlUiPathRef.current
+                          : `/${controlUiPathRef.current}`
+                        : ''),
+                    gatewayAuthTokenRef.current,
+                  )
+                : buildControlUIUrl(port, gatewayAuthTokenRef.current, controlUiPathRef.current)
+            setControlUiLoadError(false)
             if (shouldReloadControlUi) {
               setControlUiReloadKey((k) => k + 1)
             }
             setControlUrl(url)
           } catch {
+            gatewayAuthTokenRef.current = undefined
+            setControlUiLoadError(false)
             if (shouldReloadControlUi) {
               setControlUiReloadKey((k) => k + 1)
             }
-            setControlUrl(buildControlUIUrl(port))
+            setControlUrl(
+              status.mode === 'remote' && status.controlUrl
+                ? status.controlUrl
+                : buildControlUIUrl(port, undefined, controlUiPathRef.current),
+            )
           }
         })()
       } else {
@@ -255,6 +297,49 @@ export function EmbeddedShellLayout({ activePanel, onPanelChange }: EmbeddedShel
     void window.electronAPI.systemOpenLogDir()
   }
 
+  const reloadControlUi = useCallback((path?: string) => {
+    if (gatewayPort == null && !controlUrl) return
+    if (path !== undefined) {
+      controlUiPathRef.current = path
+    }
+    setControlUiLoadError(false)
+    if (controlUrl?.startsWith('http') && !controlUrl.includes('127.0.0.1')) {
+      const origin = controlUrl.replace(/#.*$/, '').replace(/\/$/, '')
+      const p = controlUiPathRef.current
+      const withPath =
+        origin + (p ? (p.startsWith('/') ? p : `/${p}`) : '')
+      setControlUrl(appendTokenHash(withPath, gatewayAuthTokenRef.current))
+    } else if (gatewayPort != null) {
+      setControlUrl(buildControlUIUrl(gatewayPort, gatewayAuthTokenRef.current, controlUiPathRef.current))
+    }
+    setControlUiReloadKey((k) => k + 1)
+    onPanelChange('')
+  }, [gatewayPort, controlUrl, onPanelChange])
+
+  const handlePickAttachments = useCallback(async () => {
+    if (attachBusy) return
+    setAttachBusy(true)
+    setAttachBanner(null)
+    try {
+      const result = await window.electronAPI.chatPickAttachments()
+      if (!result.ok) {
+        setAttachBanner(result.message ?? t('shell.embed.attachFailed'))
+      } else if (result.count > 0) {
+        const skip =
+          result.skipped.length > 0
+            ? t('shell.embed.attachSkipped', { list: result.skipped.join(', ') })
+            : ''
+        setAttachBanner(t('shell.embed.attachOk', { count: result.count }) + (skip ? ` ${skip}` : ''))
+      }
+      // canceled / zero files: no banner
+    } catch (e) {
+      setAttachBanner(e instanceof Error ? e.message : t('shell.embed.attachFailed'))
+    } finally {
+      setAttachBusy(false)
+      window.setTimeout(() => setAttachBanner(null), 5000)
+    }
+  }, [attachBusy, t])
+
   const handleNavigateToPanel = (panel: EmbeddedPanel) => {
     onPanelChange(panel)
   }
@@ -281,6 +366,8 @@ export function EmbeddedShellLayout({ activePanel, onPanelChange }: EmbeddedShel
           <SettingsView
             onBack={() => onPanelChange('')}
             onOpenFeishuSettings={() => onPanelChange('feishu-settings')}
+            onOpenModels={() => onPanelChange('models')}
+            onOpenChannels={() => onPanelChange('channels')}
           />
         )
       case 'about':
@@ -293,6 +380,8 @@ export function EmbeddedShellLayout({ activePanel, onPanelChange }: EmbeddedShel
             onNavigateToSkills={() => handleNavigateToPanel('skills')}
             onNavigateToUpdates={() => handleNavigateToPanel('updates')}
             onNavigateToFeishuSettings={() => handleNavigateToPanel('feishu-settings')}
+            onNavigateToModels={() => handleNavigateToPanel('models')}
+            onNavigateToChannels={() => handleNavigateToPanel('channels')}
             updateAvailable={updateAvailable && !updateDismissed}
             updateVersion={updateInfo?.version}
             onDismissUpdateNotice={() => dismissUpdateNotice()}
@@ -313,7 +402,17 @@ export function EmbeddedShellLayout({ activePanel, onPanelChange }: EmbeddedShel
           />
         )
       case 'feishu-settings':
-        return <FeishuAccessView onBack={() => onPanelChange('settings')} />
+        return <FeishuAccessView onBack={() => onPanelChange('channels')} />
+      case 'models':
+        return <ModelsView onBack={() => onPanelChange('')} />
+      case 'channels':
+        return (
+          <ChannelsView
+            onBack={() => onPanelChange('')}
+            onOpenFeishuSettings={() => onPanelChange('feishu-settings')}
+            onOpenControlUi={(path) => reloadControlUi(path ?? '')}
+          />
+        )
       default:
         return null
     }
@@ -333,7 +432,10 @@ export function EmbeddedShellLayout({ activePanel, onPanelChange }: EmbeddedShel
             hasActivePanel ? 'opacity-0 pointer-events-none' : ''
           }`}
           referrerPolicy="no-referrer"
+          allow="clipboard-read; clipboard-write; camera; microphone"
           allowFullScreen
+          onLoad={() => setControlUiLoadError(false)}
+          onError={() => setControlUiLoadError(true)}
         />
       ) : (
         !hasActivePanel && (
@@ -347,6 +449,68 @@ export function EmbeddedShellLayout({ activePanel, onPanelChange }: EmbeddedShel
             />
           </div>
         )
+      )}
+
+      {showControlUIIframe && !hasActivePanel && controlUiLoadError && (
+        <div
+          className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2 rounded-md border border-destructive/40 bg-background/95 px-3 py-2 text-xs text-destructive shadow-sm backdrop-blur"
+          role="alert"
+        >
+          Control UI failed to load.{' '}
+          <button type="button" className="underline font-medium" onClick={() => reloadControlUi()}>
+            Reload
+          </button>
+        </div>
+      )}
+
+      {showControlUIIframe && !hasActivePanel && attachBanner && (
+        <div
+          className="absolute bottom-4 left-1/2 z-20 -translate-x-1/2 rounded-md border border-border bg-background/95 px-3 py-2 text-xs text-foreground shadow-sm backdrop-blur max-w-[min(90vw,28rem)]"
+          role="status"
+        >
+          {attachBanner}
+        </div>
+      )}
+
+      {showControlUIIframe && !hasActivePanel && (
+        <div className="absolute top-3 right-3 z-20 flex items-center gap-2 pointer-events-auto">
+          <QuickModelChip onOpenModels={() => onPanelChange('models')} />
+          <button
+            type="button"
+            onClick={() => void handlePickAttachments()}
+            disabled={attachBusy}
+            className="rounded-md border border-border bg-background/90 px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur hover:border-primary/50 hover:bg-muted transition-colors disabled:opacity-50 inline-flex items-center gap-1"
+            aria-label={t('shell.embed.attach')}
+            title={t('shell.embed.attachTitle')}
+          >
+            <Paperclip className="w-3.5 h-3.5" />
+            {t('shell.embed.attach')}
+          </button>
+          <button
+            type="button"
+            onClick={() => onPanelChange('channels')}
+            className="rounded-md border border-border bg-background/90 px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur hover:border-primary/50 hover:bg-muted transition-colors"
+          >
+            Channels
+          </button>
+          <button
+            type="button"
+            onClick={() => reloadControlUi()}
+            className="rounded-md border border-border bg-background/90 px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur hover:border-primary/50 hover:bg-muted transition-colors"
+            aria-label={t('shell.embed.reloadControlUi')}
+            title={t('shell.embed.reloadControlUi')}
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => onPanelChange('dashboard')}
+            className="rounded-md border border-border bg-background/90 px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur hover:border-primary/50 hover:bg-muted transition-colors"
+            aria-label="Desktop menu"
+          >
+            Menu
+          </button>
+        </div>
       )}
 
       {/* Desktop panel overlay: flex column + scroll region so flex-1 panels are not height-collapsed */}

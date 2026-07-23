@@ -1,98 +1,135 @@
-# Changelog
+﻿# Changelog
 
-All notable changes to OpenClaw Desktop will be documented in this file.
+All notable changes to OpenClaw Desktop Plus will be documented in this file.
 
-## [Unreleased]
+## [0.8.0] - 2026-07-24
+
+### Changed
+
+- **Author / publisher:** Installer metadata uses **99apps.id** (no `@AgentKernel` / email-as-publisher); contact email remains in `package.json` `author.email` only.
+- **Branding:** Product renamed to **OpenClaw Desktop Plus** (`productName`, shortcuts, i18n, README); `package.json` `name` → `openclaw-desktop-plus`; installer artifact `OpenClaw-Desktop-Plus-Setup-…`. Shell config migrates once from `%APPDATA%\OpenClaw Desktop` to `…\OpenClaw Desktop Plus`. **`appId` → `com.openclaw.desktop-plus`** (new Windows product identity — uninstall the previous `com.openclaw.desktop` build before installing; in-place upgrade from the old appId is not supported).
+- **Repository:** Home / publish / updater URLs point to [99apps-id/openclaw-desktop-plus](https://github.com/99apps-id/openclaw-desktop-plus).
+- **Locales:** Removed Simplified/Traditional Chinese UI packs and docs; Chinese OS locales fall back to English. Docs and source comments are English-only.
+- **Bundled OpenClaw:** npm **2026.4.2** → **2026.7.1-2** (then `openclaw@latest`). Upstream: [v2026.7.1](https://github.com/openclaw/openclaw/releases/tag/v2026.7.1) · [docs](https://docs.openclaw.ai/releases/2026.7.1).
+- **Bundled Node.js:** **22.16.0** → **22.23.1** (upstream `engines` `>=22.22.3` on 22.x); sync `download-node`, version checks, CI `NODE_VERSION_CI`, `package.json` `engines`.
+- **Control UI source tags:** npm republish versions (e.g. `2026.7.1-2`) fall back to baseline GitHub tag (`v2026.7.1`) when `v…-N` is missing; materialize `workspace:*` packages for Vite (`ensure-openclaw-control-ui.ts`).
+- **Desktop UX:** Top-bar Models / Channels; default-model panel; WhatsApp multi-account; wizard multi-account; GPT-5.6 presets.
+- **Release:** Shell **`0.8.0+openclaw.2026.7.1-2`**; tag **`v0.8.0+openclaw.2026.7.1-2`**.
+- **Docs:** README / CONTRIBUTING / release examples aligned to **0.8.0** and **2026.7.1-2**.
+
+### Fixed
+
+- **Models:** Operator precedence bug in `ModelSettingsSection` “custom model” detection (empty `modelId` misclassified as custom when presets exist).
+
+### Added
+
+- **Coding chat attach:** Shell **Attach** button (native multi-file dialog) injects images/documents into the Control UI composer; iframe `allow` for clipboard/camera; composer hint + drop affordance; Settings/Models **Vision & PDF models** (`agents.defaults.imageModel` / `pdfModel`). Vision save preserves structured `{ primary, fallbacks }`; custom endpoint field only shows real overrides vs seed; attach batch capped (8 files / 32 MiB).
+- **Custom endpoint:** Optional API base URL override on Models / wizard for any built-in provider (`models.providers.<id>.baseUrl`) — proxies, LiteLLM, alternate OpenRouter gateways.
+- **Failover & key rotation:** Models/Settings panel to edit model fallback chain, `auth.cooldowns.rateLimitedProfileRotations`, and add extra API keys as rotatable auth profiles (OpenRouter-style rate-limit resilience).
+- **Chat ASCII / QR:** Embedded Control UI injects monospace-preserving CSS and sharp QR image rendering for ASCII art and QR codes in chat.
+- **Remote gateway:** Settings → Gateway connection — `gateway.mode` local/remote, `gateway.remote.url` / token / transport; skip local process when remote; Control UI iframe loads from the remote HTTP origin.
+- **Provider OAuth:** In-app **Sign in with OAuth** (bundled `openclaw models auth login`) for OpenRouter (API key or OAuth), OpenAI Codex, GitHub Copilot, Gemini CLI, Qwen Portal, Chutes; expanded OpenRouter model presets.
+- **P0 Models:** Live Gateway `models.list` catalog; one-click set default model + restart gateway; periodic chip refresh.
+- **P0 Channels:** WhatsApp QR steps + deep-link to Control UI `/channels`; Telegram / Discord / Feishu credential editors; Slack strip notice.
+- **P0 Control UI:** Top-bar Reload; load-error banner.
+- **P1 Dashboard:** One-click `doctor` / `doctor --fix`.
+- **P1 Skills:** Plugin install entry; Slack/Bedrock strip notice.
+
+### Notes (shell / user config)
+
+- Upstream Control UI / onboarding overhaul; channel, model, and gateway reliability. After upgrade with custom plugin paths, run **`openclaw doctor --fix`**.
+- Embedded iframe still auto-maintains `gateway.controlUi.allowInsecureAuth`, `dangerouslyDisableDeviceAuth`, and loopback `allowedOrigins: ["*"]` when unset.
+- Bundle patches: Feishu `registerFull` once (skip on 2026.7+ without adjacency), Slack filtered from `listBundledChatChannelEntries`, amazon-bedrock stripped, Lark SDK inject, Electron Lit transpile revalidated on **2026.7.1-2**.
+- Control UI build: install `@lit/context`; Vite aliases via `ui/node_modules`; restore npm `package.json` after root install; hoist `@openclaw/*` after root `npm install`.
 
 ## [0.7.0] - 2026-04-03
 
 ### Changed
 
-- **网关就绪判定：** 首次启动后仅在 **TCP 端口可连** 且 **GET `/`（含 token 查询串）返回非 5xx** 后才将状态标为 `running`，避免 Control UI 仍在插件探测 / 认证栈初始化时出现 HTTP 500 时 iframe 已显示错误页（`process-manager.ts`）。
-- **网关绑定类型：** `GatewayLaunchOptions.bind` 与上游对齐，补充 **`tailnet`** / **`custom`**（`process-manager.ts`、`shared/types.ts`）。
-- **随包 OpenClaw 收尾：** `download-openclaw` 在多种路径下统一执行 **飞书 Lark SDK 注入**、**Feishu registerFull 补丁**、**Slack 通道剥离补丁**；npm 临时目录改为每次唯一路径，减轻 Windows 下 `_openclaw_tmp` 锁定导致安装失败（`download-openclaw.ts`、新脚本 `ensure-openclaw-feishu-sdk.ts`、`patch-openclaw-strip-slack-channel.ts`）。
-- **打包与校验：** `prepare-bundle` / `verify-bundle` / `verify-packaged-win` 等与上述资源布局一致；smoke 与网关响应头相关脚本同步。
-- **Release：** Shell **`0.7.0+openclaw.2026.4.2`**；Git 发行标签 **`v0.7.0+openclaw.2026.4.2`**。捆绑 OpenClaw 仍为 npm **`2026.4.2`**（与 `openclaw@latest` 一致）。
-- **文档：** `README.md` / `README.zh-CN.md` / `CONTRIBUTING.md` / `release.yml` 示例与 **0.7.0** 及 **2026.4.2** 钉扎对齐。
+- **Gateway ready:** Mark `running` only after TCP connect **and** `GET /` (with token query) returns non-5xx, avoiding Control UI iframe errors while plugins/auth still initialize (`process-manager.ts`).
+- **Gateway bind types:** Add **`tailnet`** / **`custom`** (`process-manager.ts`, `shared/types.ts`).
+- **Bundled OpenClaw finish:** `download-openclaw` always runs Feishu Lark SDK inject, Feishu `registerFull` patch, Slack channel strip; unique npm temp dirs on Windows (`download-openclaw.ts`, `ensure-openclaw-feishu-sdk.ts`, `patch-openclaw-strip-slack-channel.ts`).
+- **Packaging / verify:** `prepare-bundle` / `verify-bundle` / `verify-packaged-win` aligned; smoke scripts updated.
+- **Release:** Shell **`0.7.0+openclaw.2026.4.2`**; tag **`v0.7.0+openclaw.2026.4.2`**. Bundled OpenClaw npm **`2026.4.2`**.
+- **Docs:** Aligned to **0.7.0** / **2026.4.2**.
 
 ## [0.6.6] - 2026-04-03
 
 ### Changed
 
-- **Bundled OpenClaw：** 升至 npm **2026.4.2**（与当前 `openclaw@latest` 一致）。完整上游说明：[openclaw/openclaw v2026.4.2](https://github.com/openclaw/openclaw/releases/tag/v2026.4.2)。
-- **Release：** Shell **`0.6.6+openclaw.2026.4.2`**；Git 发行标签为 **`v` + `package.json` 的 `version`**，例如 **`v0.6.6+openclaw.2026.4.2`**。
-- **文档：** `README.md` / `README.zh-CN.md` / `CONTRIBUTING.md` / `release.yml` 示例标签与 **2026.4.2** 钉扎及上游摘要对齐。
+- **Bundled OpenClaw:** npm **2026.4.2**. Upstream: [v2026.4.2](https://github.com/openclaw/openclaw/releases/tag/v2026.4.2).
+- **Release:** Shell **`0.6.6+openclaw.2026.4.2`**; tags are **`v` + `package.json` `version`**.
+- **Docs:** Aligned to **2026.4.2**.
 
-### Notes（与桌面壳 / 用户配置）
+### Notes (shell / user config)
 
-- **破坏性（需迁移）：** X（xAI）插件将 **`x_search`** 配置从旧路径 `tools.web.x_search.*` 迁至 **`plugins.entries.xai.config.xSearch.*`**，认证统一到 **`plugins.entries.xai.config.webSearch.apiKey` / `XAI_API_KEY`**；Firecrawl 将 **`web_fetch`** 从 `tools.web.fetch.firecrawl.*` 迁至 **`plugins.entries.firecrawl.config.webFetch.*`**。上游提供 **`openclaw doctor --fix`** 做旧配置迁移（参见上游 Release #59674、#59465）。
-- **与本项目相关：** 上游修复 **网关 loopback 配对** 后本地 exec / 子代理在 **2026.3.31** 后出现的配对类错误（如 #59092、#59555）；桌面仍通过 **`node` + `openclaw.mjs gateway run`**（`--allow-unconfigured`、`--bind`、`--port`、可选 `--token`）启动，**`OPENCLAW_STATE_DIR` / `OPENCLAW_CONFIG_PATH` / `OPENCLAW_AGENT_DIR`** 与内嵌 Control UI（GitHub 标签源码 + Vite + Electron 兼容构建）流程不变；若你自定义了 **x_search** 或 **Firecrawl web_fetch**，升级后请运行 **`openclaw doctor`** 并按提示修复。
+- **Breaking (migrate):** xAI `x_search` moves to `plugins.entries.xai.config.xSearch.*`; Firecrawl `web_fetch` to `plugins.entries.firecrawl.config.webFetch.*`. Use **`openclaw doctor --fix`**.
+- Desktop still starts gateway via **`node` + `openclaw.mjs gateway run`**. If you customized x_search or Firecrawl web_fetch, run **`openclaw doctor`** after upgrade.
 
 ## [0.6.4] - 2026-04-03
 
 ### Fixed
 
-- **主界面 / Control UI / Internal Server Error（续）：** 上游 `checkBrowserOrigin` 在 **WebSocket** 上若 **`Origin` 缺失或为字面量 `null`** 会直接拒绝（早于 loopback 放行）。Electron 内嵌 iframe 可能出现该情况。现于主进程 **`webRequest.onBeforeSendHeaders`** 对发往本机网关端口的环回请求补全 `Origin`（`gateway-request-origin.ts`、`index.ts`）。对 **`gateway.bind` 为 loopback 或未设置** 且 **`gateway.controlUi.allowedOrigins` 未配置或为空数组** 的配置，迁移与写盘合并 **`allowedOrigins: ["*"]`**（与上游 allowlist 逻辑一致；不覆盖用户已有非空列表）。**向导**在 **`bind === 'loopback'`** 时生成的 `openclaw.json` 同步写入上述 `allowedOrigins`（`setup-handler.ts`）。
-- **打包：** `prepare-bundle` 复制随包 OpenClaw 后 **移除 `dist/extensions/amazon-bedrock`**，该扩展依赖未打入安装包的 `@aws-sdk/client-bedrock`，否则会每次启动刷屏告警（`prepare-bundle.ts`）。
+- **Control UI / Internal Server Error (follow-up):** Upstream `checkBrowserOrigin` rejects missing/`null` WebSocket `Origin` before loopback allow. Main process fills `Origin` on loopback gateway requests (`gateway-request-origin.ts`). For loopback bind with empty `allowedOrigins`, merge `allowedOrigins: ["*"]`. Wizard writes the same for `bind === 'loopback'`.
+- **Packaging:** After copy, `prepare-bundle` removes `dist/extensions/amazon-bedrock` (missing `@aws-sdk/client-bedrock` otherwise spam-logs).
 
 ## [0.6.3] - 2026-04-02
 
 ### Fixed
 
-- **主界面 / Control UI / 配置：** 上游 OpenClaw **2026.3.x** 在内嵌 iframe 下需 `gateway.controlUi.allowInsecureAuth` 与 `dangerouslyDisableDeviceAuth`。此前若 `openclaw.json` **缺少整段 `gateway`**（CLI/手改配置常见），迁移会跳过，子进程仍读磁盘旧文件并可能 **HTTP 500**。现对非 `remote` 网关始终合并上述字段；且 **`writeOpenClawConfig` 在每次写盘前再次合并**，避免设置/导入等路径覆盖后丢失标志；写盘增加短暂重试以减轻 Windows 下偶发锁文件导致迁移未落盘的问题（`openclaw-config.ts`）。
+- **Control UI / config:** Always merge `allowInsecureAuth` / `dangerouslyDisableDeviceAuth` for non-remote gateways even when `gateway` was missing; `writeOpenClawConfig` re-merges before every write; short write retries on Windows file locks.
 
 ## [0.6.2] - 2026-04-01
 
 ### Changed
 
-- **发布与 Git 标签：** 自本版起，**发行版 Git 标签**与根目录 `package.json` 的 **`version` 字段一致并加前缀 `v`**，例如 **`v0.6.2+openclaw.2026.3.31`**，后缀 **`+openclaw.<捆绑 OpenClaw 版本>`** 与钉扎 `openclawBundleVersion` 对齐，便于对照安装包内捆绑运行时。手动触发 `Release` 工作流时请在输入框填写**完整标签名**（含 `+`）；PowerShell 下若命令行打 tag，请给标签加引号。
+- **Release tags:** Git tags match `v` + `package.json` `version` (e.g. `v0.6.2+openclaw.2026.3.31`). Quote tags in PowerShell when they contain `+`.
 
 ## [0.6.1] - 2026-04-01
 
 ### Fixed
 
-- **主界面 / Control UI：** 上游 OpenClaw **2026.3.x** 对 Control UI 的 **device identity** 与环回认证更严格，Electron 内嵌 iframe 下仅设置 `gateway.controlUi.allowInsecureAuth` 仍可能出现 **HTTP 500 Internal Server Error** 或 WebSocket 握手失败。现对**非 remote** 网关自动写入 **`allowInsecureAuth: true`** 与 **`dangerouslyDisableDeviceAuth: true`**（并覆盖用户误设的 `false`），与向导新建配置一致（`openclaw-config.ts`、`setup-handler.ts`）。详见上游相关讨论（如 device-identity / Control UI HTTP 问题）。
+- **Control UI:** For non-remote gateways, force `allowInsecureAuth: true` and `dangerouslyDisableDeviceAuth: true` so Electron iframe auth matches wizard defaults.
 
 ## [0.6.0] - 2026-04-01
 
 ### Fixed
 
-- **Control UI / `package.json`：** `ensureOpenClawRootDepsForBundledSrc` 为解析 `../src/**` 曾写入临时 stub `package.json`（`0.0.0`），构建结束后未还原，导致 `build/openclaw`（及随后同步的 `resources/openclaw`）与 `.openclaw-version` 版本不一致，`check-openclaw-versions` 失败。现于 root `npm install` 后 **写回 GitHub 标签解压得到的真实 OpenClaw `package.json`**（`scripts/ensure-openclaw-control-ui.ts`）。
-- **prepare-bundle / 资源同步：** 当 `resources/openclaw` 仅因版本标记相同而 **跳过复制** 时，可能仍保留上述 stub 清单。现检测 `package.json` 的 `name === "openclaw-desktop-control-ui-openclawroot"` 时 **强制从 `build/openclaw` 重拷**（`scripts/prepare-bundle.ts`）。
+- **Control UI / `package.json`:** Restore real OpenClaw `package.json` after root `npm install` (stub name no longer left behind).
+- **prepare-bundle:** Force re-copy when resources still have the control-ui stub package name.
 
 ### Changed
 
-- **Release：** Shell **`0.6.0+openclaw.2026.3.31`**；Git 标签 **`v0.6.0`**。捆绑 OpenClaw 仍为 **2026.3.31**（`openclawBundleVersion` 未变）。
-- **文档：** `README.md` / `README.zh-CN.md` / `CONTRIBUTING.md` / `release.yml` 示例 tag 与 **v0.6.0** 对齐。
+- **Release:** Shell **`0.6.0+openclaw.2026.3.31`**; tag **`v0.6.0`**. Bundled OpenClaw **2026.3.31**.
+- **Docs:** Aligned to **v0.6.0**.
 
 ## [0.5.0] - 2026-03-31
 
 ### Changed
 
-- **Bundled OpenClaw：** 自 **2026.3.28** 升至 **2026.3.31**（npm `latest`）。上游含飞书相关修复：`hooks.mappings[].channel` 接受 `feishu`（[#56226](https://github.com/openclaw/openclaw/issues/56226)）、群组引用回复与 allowlist 对齐等；完整说明见 [v2026.3.31](https://github.com/openclaw/openclaw/releases/tag/v2026.3.31) / [npm 摘要](https://newreleases.io/project/npm/openclaw/release/2026.3.31)。破坏性项包括：`nodes.run` 壳封装移除、插件安装/技能依赖扫描默认失败关闭、`trusted-proxy` 与 Node 配对/命令面收紧等（详见上游 Release）。桌面仍对随包 `dist` 执行 `patch-openclaw-feishu-register-once`；**2026.3.31** 起 Feishu 打入 `dist/extensions/feishu/index.js`，补丁已覆盖该路径，避免 `registrationMode: full` 下重复 `registerFull`。
-- **Release：** Shell **`0.5.0+openclaw.2026.3.31`**（延续 `主版本+openclaw.<捆绑 OpenClaw 版本号>` 命名）；Git 标签 **`v0.5.0`**。
-- **文档：** `README.md` / `README.zh-CN.md` / `CONTRIBUTING.md` 与 **2026.3.31** 钉扎及上游摘要对齐；历史条目见本文件。
-- **CI：** `release.yml` 手动发布示例 tag 更新为 `v0.5.0`。
+- **Bundled OpenClaw:** **2026.3.28** → **2026.3.31**. Feishu fixes and upstream breakages; desktop still applies `patch-openclaw-feishu-register-once` on `dist/extensions/feishu/index.js`.
+- **Release:** Shell **`0.5.0+openclaw.2026.3.31`**; tag **`v0.5.0`**.
+- **Docs / CI:** Aligned to **2026.3.31**.
 
 ## [0.4.11] - 2026-03-31
 
 ### Changed
 
-- **Bundled OpenClaw:** 升级至 npm **2026.3.28**（[上游 v2026.3.28](https://github.com/openclaw/openclaw/releases/tag/v2026.3.28)）。相对 2026.3.24 含大量通道/网关/CLI 修复与行为变更；破坏性项包括：Qwen 弃用 `qwen-portal-auth`、Doctor 不再自动迁移两个月前的旧配置键。
-- **向导 MiniMax 预设：** 下拉选项与上游目录一致，仅保留 **M2.7** 系列（移除已弃用的 M2 / M2.1 / M2.5 / VL-01）。
-- **飞书 `registerFull` 补丁：** 上游将 Feishu 打入 `dist/auth-profiles-*.js` 后，原 `dist/feishu-*.js` 补丁不再命中；现同时扫描 `auth-profiles-*.js` 并注入一次性防护。`prepare-bundle` 在 OpenClaw 因版本相同跳过复制时仍会对 `resources/openclaw` 打补丁，避免随包资源缺补丁。
-- **Release：** Shell `0.4.11+openclaw.2026.3.28`；`prepare-bundle` 后 `resources/bundle-manifest.json` 与 `package.json` 对齐。
+- **Bundled OpenClaw:** npm **2026.3.28**.
+- **Wizard MiniMax presets:** M2.7 series only.
+- **Feishu `registerFull` patch:** Also scan `auth-profiles-*.js`; re-patch resources even when copy is skipped.
+- **Release:** Shell `0.4.11+openclaw.2026.3.28`; manifest aligned.
 
 ## [0.4.10] - 2026-03-27
 
 ### Added
 
-- **设置 → 模型：** 新增「模型」区块，可从 `openclaw.json` 加载当前默认/按 Agent 的模型配置，编辑提供商、模型 ID、API Key（及 Moonshot 区域等），支持连接测试，并写回配置与 `auth-profiles`（与向导逻辑对齐）。
-- **打包：** 对随包 OpenClaw 飞书通道做 `registerFull` 一次性防护补丁（`patch-openclaw-feishu-register-once`），避免 `registrationMode: full` 下重复注册工具并刷屏日志。
+- **Settings → Models:** Load/edit default and per-agent models from `openclaw.json` (provider, model ID, API key, Moonshot region), connection test, write-back with auth-profiles.
+- **Packaging:** Feishu `registerFull` once-guard patch to avoid duplicate tool registration spam.
 
 ### Changed
 
-- **Release：** Shell `0.4.10+openclaw.2026.3.24`；`prepare-bundle` 后 `resources/bundle-manifest.json` 与 `package.json` 对齐。
+- **Release:** Shell `0.4.10+openclaw.2026.3.24`; manifest aligned.
 
 ## [0.4.9] - 2026-03-27
 
@@ -155,203 +192,191 @@ All notable changes to OpenClaw Desktop will be documented in this file.
 
 ### Fixed
 
-- **MiniMax HTTP 401 `invalid api key`:** MiniMax’s Anthropic-compatible API (`https://api.minimax.io/anthropic`) expects **Anthropic-style `x-api-key`** (official docs: `ANTHROPIC_API_KEY` + Anthropic SDK). The shell had set `authHeader: true` (**Bearer**), which MiniMax rejects even when the key is valid. The MiniMax seed no longer sets Bearer; existing `openclaw.json` entries are migrated to **`authHeader: false`** on load. The blanket third-party `anthropic-messages` migration **excludes** MiniMax; OpenCode Zen, Kimi Coding, Synthetic, Cloudflare AI Gateway, etc. are unchanged.
+- **MiniMax HTTP 401 `invalid api key`:** MiniMax’s Anthropic-compatible API expects **Anthropic-style `x-api-key`**. The shell had set `authHeader: true` (**Bearer**), which MiniMax rejects even when the key is valid. Migrated to **`authHeader: false`**. The blanket third-party `anthropic-messages` migration **excludes** MiniMax.
 
 ### Changed
 
-- **Feishu DM pairing notifications:** Replaced the 12s polling loop with **`fs.watch` on `~/.openclaw/credentials`** (debounced) so pairing JSON updates drive notifications; **dedupe by `openId`** and a short throttle when `openId` is missing to avoid repeated toasts when the pairing code rotates.
+- **Feishu DM pairing notifications:** Replaced polling with **`fs.watch` on `~/.openclaw/credentials`** (debounced); **dedupe by `openId`**.
 
 ## [0.4.1] - 2026-03-26
 
 ### Changed
 
-- **Setup wizard:** Before writing `openclaw.json` and `auth-profiles.json`, the wizard now **sanitizes** (trims) API keys, model IDs, custom provider fields, Cloudflare gateway fields, and the gateway auth token so pasted values match runtime configuration.
-- **Custom provider:** Wizard output now includes an **`agents.defaults.models`** alias entry for the selected model, consistent with built-in provider seeds from `ensureProviderSeedConfig`.
+- **Setup wizard:** Sanitize (trim) API keys, model IDs, custom provider fields, Cloudflare gateway fields, and gateway auth token before write.
+- **Custom provider:** Wizard output includes an **`agents.defaults.models`** alias entry for the selected model.
 
 ## [0.3.4] - 2026-03-26
 
 ### Fixed
 
-- **MiniMax / third-party Anthropic HTTP 401:** Aligned with OpenClaw `extensions/minimax/onboard.ts` by setting **`authHeader: true`** on `anthropic-messages` providers that target non-`api.anthropic.com` hosts (MiniMax, Synthetic, OpenCode Zen, Kimi Coding, Cloudflare AI Gateway). Existing `openclaw.json` entries are migrated on load. Custom Anthropic-compatible bases get the same flag when the URL is not Anthropic’s official API.
+- **MiniMax / third-party Anthropic HTTP 401:** Set **`authHeader: true`** on non-`api.anthropic.com` `anthropic-messages` hosts (later revised for MiniMax in 0.4.2).
 
 ## [0.3.3] - 2026-03-26
 
 ### Fixed
 
-- **MiniMax (401):** OpenClaw and the setup wizard use auth profile **`minimax:global`**, but the LLM API path normalized `default` to **`minimax:default`**, so the gateway looked up the wrong profile. `normalizeAuthOrderEntry` now maps MiniMax `default` / `minimax:default` → **`minimax:global`**; `auth-profiles.json` migration renames `minimax:default` to `minimax:global` when needed.
+- **MiniMax (401):** Map MiniMax `default` / `minimax:default` → **`minimax:global`** in auth order and profiles.
 
 ## [0.3.2] - 2026-03-26
 
 ### Fixed
 
-- **Model auth (401) hardening:** LLM API “save profile” now always stores credentials under **canonical profile ids** (`provider:name`) via `normalizeAuthOrderEntry`, matching `auth.order`. Startup migrates shorthand keys in `auth-profiles.json`; reading `openclaw.json` normalizes `auth.order` entries. Custom provider / wizard auth writes trim API keys. Delete profile accepts optional `provider` and resolves ids consistently with save.
+- **Model auth (401) hardening:** Always store credentials under canonical profile ids (`provider:name`); migrate shorthand keys on startup.
 
 ## [0.3.1] - 2026-03-26
 
 ### Fixed
 
-- **Upstream model auth (401):** Wizard-generated `auth.order` now uses **full profile IDs** (e.g. `minimax:global`) to match OpenClaw’s configuration reference and the LLM API “save profile” path. `addProfileToAuthOrder` / `removeProfileFromAuthOrder` normalize shorthand entries (`global` vs `minimax:global`) so the gateway resolves the same credential as `auth-profiles.json`.
-- **Xiaomi MiMo seed config:** Provider seed uses `https://api.xiaomimimo.com/v1` with `openai-completions`, aligned with upstream provider docs (was incorrectly pointed at an Anthropic-style path).
+- **Upstream model auth (401):** Wizard `auth.order` uses full profile IDs; normalize shorthand in add/remove helpers.
+- **Xiaomi MiMo seed:** `https://api.xiaomimimo.com/v1` with `openai-completions`.
 
 ### Changed
 
-- **Wizard model presets:** Provider/model dropdowns updated to match bundled OpenClaw **2026.3.23-2** (MiniMax M2.7 lineup, xAI Grok catalog, Synthetic `hf:*` IDs, Kilo `kilo/auto`, Volcengine naming, Vercel ordering, etc.). See `src/renderer/constants/provider-presets.ts`.
+- **Wizard model presets:** Updated for bundled OpenClaw **2026.3.23-2**.
 
 ## [0.3.0] - 2026-03-25
 
 ### Fixed
 
-- **Embedded Control UI:** Removed the WebSocket **operator pre-probe** (`gateway:probeOperator`) that blocked the main iframe until a main-process RPC connect succeeded. On some gateway builds the probe never completed (repeated `[ws] closed before connect` / code 1005) while the browser Control UI could still connect, which left the shell stuck on **Gateway starting**. The shell again mounts the Control UI iframe as soon as the gateway is **running** and the control URL (with token hash) is known—same as pre-0.3.0 behavior, so the console always loads.
-- **Config read timeout:** When building the control URL, `config:read` is raced with a **10s** timeout so a hung IPC cannot leave the shell on the loading screen indefinitely (falls back to a URL without `#token=`).
+- **Embedded Control UI:** Removed WebSocket operator pre-probe that could stick the shell on “Gateway starting”; mount iframe when gateway is running.
+- **Config read timeout:** `config:read` raced with **10s** timeout when building control URL.
 
 ## [0.2.22] - 2026-03-25
 
 ### Fixed
 
-- **Control UI (Lit field decorators in Electron):** Before building OpenClaw `ui/` from GitHub sources, apply desktop-only Vite/tsconfig patches so Lit `@property` / `@state` emit legacy decorator semantics Chromium in Electron accepts; remove any prepackaged npm `dist/control-ui` so the bundle is always rebuilt with that config. Track installs with `.electron-lit-compat-v1` and rebuild when the marker is missing (avoids `Unsupported decorator location: field` at runtime).
+- **Control UI (Lit field decorators in Electron):** Desktop-only Vite/tsconfig patches for Lit decorators; rebuild when `.electron-lit-compat-v1` missing.
 
 ## [0.2.21] - 2026-03-25
 
 ### Fixed
 
-- **Control UI (embedded gateway dashboard):** After the upstream Vite build, run a **desktop-only** esbuild pass on `dist/control-ui` (`target: chrome130`) so TC39 decorators and similar syntax no longer crash the Electron renderer (black screen). No changes to the OpenClaw upstream repo.
-- **In-app updates:** Map shell “stable” channel to electron-updater channel **`latest`** so GitHub **`latest.yml`** is fetched instead of a non-existent **`stable.yml`**.
+- **Control UI:** Desktop-only esbuild pass on `dist/control-ui` (`target: chrome130`) for Electron.
+- **In-app updates:** Map “stable” channel to electron-updater **`latest`** (`latest.yml`).
 
 ## [0.2.20] - 2026-03-25
 
 ### Changed
 
-- **Electron:** Upgrade to **41.x** (Chromium **146**) so the embedded browser can parse modern gateway Control UI bundles that rely on current JS syntax (e.g. class decorators), closer to system Chrome.
+- **Electron:** Upgrade to **41.x** (Chromium **146**).
 
 ### Fixed
 
-- **Gateway response headers:** Only apply CSP / `frame-ancestors` relaxation on `mainFrame` / `subFrame` responses; do not inject synthetic CSP on `script` and other subresource types (avoids breaking JS module loads).
+- **Gateway response headers:** Only relax CSP / `frame-ancestors` on `mainFrame` / `subFrame`.
 
 ## [0.2.18] - 2026-03-25
 
 ### Changed
 
-- **Release CI:** Workflow sets `OPENCLAW_SKIP_NPM_LATEST_CHECK=1` so `check-openclaw-versions` validates the committed pin + `bundle-manifest` + on-disk artifacts without querying or warning against npm `openclaw@latest`.
+- **Release CI:** `OPENCLAW_SKIP_NPM_LATEST_CHECK=1` so version checks validate the pin without npm `latest` drift.
 
 ### Documentation
 
-- **README.md / README.zh-CN.md:** Describe pinned OpenClaw (`openclawBundleVersion`), current bundle `2026.3.23-2`, and the CI/version-check behavior; align installer filename and download table with **v0.2.18**.
+- README: pinned OpenClaw, bundle `2026.3.23-2`, CI behavior; installer naming for **v0.2.18**.
 
 ### Added
 
-- **`scripts/check-openclaw-versions.ts`:** `--skip-npm-latest-check` and `OPENCLAW_SKIP_NPM_LATEST_CHECK` to skip the npm registry latest comparison (used by Release CI).
+- **`scripts/check-openclaw-versions.ts`:** `--skip-npm-latest-check` / `OPENCLAW_SKIP_NPM_LATEST_CHECK`.
 
 ## [0.2.17] - 2026-03-25
 
 ### Added
 
-- **Pinned OpenClaw bundle:** Root `package.json` field `openclawBundleVersion`; `download-openclaw` and CI Control UI build read it first (override via `OPENCLAW_DESKTOP_BUNDLE_VERSION` or CLI), reducing npm `latest` drift between jobs.
-- **`verify-packaged-win`:** After `electron-builder`, validates `app.asar` / `bundle-manifest.json` / bundled OpenClaw / Control UI asset refs in `win-unpacked` so mixed artifacts fail the build.
+- **Pinned OpenClaw bundle:** `openclawBundleVersion` in root `package.json`.
+- **`verify-packaged-win`:** Validates packaged Windows layout after electron-builder.
 
 ### Documentation
 
-- **`INSTALLER_BLACKSCREEN_POSTMORTEM.zh-CN.md`:** Release hardening section updated to reflect implemented checks.
+- Installer troubleshooting / release hardening notes (see `docs/INSTALLER_TROUBLESHOOTING.md`).
 
 ## [0.2.16] - 2026-03-25
 
 ### Added
 
-- **Install integrity (packaged):** Pre-start check compares `resources/bundle-manifest.json` `shellVersion` to `app.getVersion()`, and fails fast when the manifest is missing, unreadable, or mismatched (mixed/stale installer layout).
-- **Bundle validation:** `validateOpenclawResources` now verifies Control UI `index.html` references an on-disk module script under `dist/control-ui`, catching incomplete or broken UI bundles before launch.
+- **Install integrity:** Fail fast when `bundle-manifest.json` `shellVersion` mismatches `app.getVersion()`.
+- **Bundle validation:** Verify Control UI module script assets on disk.
 
 ## [0.2.15] - 2026-03-25
 
 ### Changed
 
-- **Diagnostics:** Type desktop doctor dependencies with `readOpenClawConfig: () => unknown` and a narrow cast inside `buildDesktopChecks`, avoiding loose `any` while keeping runtime shape checks.
+- **Diagnostics:** Narrower typing for desktop doctor dependency injection.
 
 ## [0.2.14] - 2026-03-25
 
 ### Fixed
 
-- **Local gateway Control UI root:** In non-remote mode, strip `gateway.controlUi.root` when it points outside the bundled `dist/control-ui`, so stale custom paths from older installs no longer load incompatible UI (black page).
-- **Gateway auth token injection:** Apply the gateway token redirect patch to `mainFrame` and `subFrame` requests as well as WebSockets, so embedded/iframed Control UI loads authenticated resources correctly.
+- **Local gateway Control UI root:** Strip `gateway.controlUi.root` outside bundled `dist/control-ui`.
+- **Gateway auth token injection:** Apply token redirect on `mainFrame` / `subFrame` as well as WebSockets.
 
 ### Changed
 
-- **Diagnostics:** Doctor adds a desktop warning when `gateway.controlUi.root` is set to a path outside the bundled Control UI (local gateway mode).
+- **Diagnostics:** Warn when `gateway.controlUi.root` is outside the bundled UI.
 
 ## [0.2.13] - 2026-03-24
 
 ### Fixed
 
-- **Gateway Control UI black screen (browser and embedded iframe):** Run all bundled OpenClaw child processes with `cwd` set to `resources/openclaw` instead of the install directory. Upstream resolves `process.cwd()/dist/control-ui` before the real bundle path; a stray or partial `dist/control-ui` under the exe folder made HTML load while `assets/*.js` returned 404, leaving a blank dark page.
-- **Stale `gateway.controlUi.root`:** On config read, remove `gateway.controlUi.root` when it does not point at a complete built UI (`index.html` plus `assets/*.js`), so copied configs from other machines or broken paths fall back to automatic bundle detection.
+- **Control UI black screen:** Run bundled OpenClaw children with `cwd` = `resources/openclaw`.
+- **Stale `gateway.controlUi.root`:** Remove incomplete UI roots on config read.
 
 ## [0.2.1] - 2026-03-24
 
 ### Updated
 
-- **Bundled OpenClaw runtime:** `2026.3.22` (npm `latest`), bringing upstream fixes and features to the Windows installer bundle.
-- **`download-openclaw`:** When installing the default `latest` dist-tag, logs an explicit `[policy]` line so release/local builds are visibly tied to the npm registry (still overridable via CLI or `OPENCLAW_DESKTOP_BUNDLE_VERSION`).
+- **Bundled OpenClaw runtime:** `2026.3.22`.
+- **`download-openclaw`:** Explicit `[policy]` log for default `latest` installs.
 
 ### Fixed
 
-- **Extension registry:** Scan bundled plugins under `resources/openclaw/dist/extensions` (OpenClaw npm 2026.3+ layout), with fallback to legacy top-level `extensions/`, so the Skills/Extensions UI matches shipped plugins.
-- **Embedded Control UI (OpenClaw 2026.3+):** Default and migrated `openclaw.json` set `gateway.controlUi.allowInsecureAuth` for local gateways; main RPC client sends full operator scopes and `tool-events` cap so WebChat/控制台 can load sessions, channels, and nodes.
-- **Gateway process liveness:** Desktop health checks use a **TCP connect** to the gateway port first (avoids false SIGTERM when HTTP is backlogged under heavy RPC/plugin load), merge loopback into main-process `NO_PROXY`, require **3 consecutive** failures before auto-restart, and probe every **12s** — health monitoring stays enabled.
-- **Control UI iframe:** Remount when the gateway leaves `running` or the gateway **PID** changes so WebSocket reconnects after restarts (same `#token` URL no longer leaves a blank console).
-- **Control UI build (`ensure-openclaw-control-ui`):** Copy upstream monorepo `src/` next to `ui/` so Vite can resolve shared imports (e.g. `format-duration`); copy `apps/` (e.g. `OpenClawKit/Resources/tool-display.json`) for imports from `ui/src/ui/tool-display.ts`.
-- **ESLint:** Ignore `build/**` so CI/local OpenClaw extract paths are not linted.
+- **Extension registry:** Scan `dist/extensions` with legacy fallback.
+- **Embedded Control UI:** `allowInsecureAuth` for local gateways; RPC client full operator scopes + `tool-events`.
+- **Gateway process liveness:** TCP-first health, NO_PROXY loopback, 3 consecutive failures, 12s probe.
+- **Control UI iframe:** Remount on gateway leave-running or PID change.
+- **Control UI build:** Copy upstream `src/` and `apps/` for Vite imports.
+- **ESLint:** Ignore `build/**`.
 
 ### Documentation
 
-- **README.md / README.zh-CN:** Matching sections on OpenClaw **2026.3.22** compatibility — how the bundle tracks npm `latest`, `bundle-manifest.json` vs `prepare-bundle`, Node/OpenClaw paths, Control UI source build, `dist/extensions`, and pointers to upstream breaking changes for plugin authors.
-- **CONTRIBUTING.md:** Local Windows packaging notes and `package:prepare-deps`.
+- README compatibility section for OpenClaw **2026.3.22**.
+- CONTRIBUTING packaging notes.
 
 ## [0.2.0] - 2026-03-22
 
 ### Added
 
-- **Feishu Access panel** — dedicated screen for Feishu credentials, pending pairing requests, pairing-code approval, and allowlist management (Settings, Dashboard, and tray entry points).
-- **Pairing IPC (main process)** — list/approve/remove Feishu pairing state via the bundled OpenClaw runtime from the desktop shell.
-- **Tray menu localization** — tray labels follow the selected shell/UI language.
-- **Installer license assets** — English, Simplified Chinese, and Traditional Chinese license texts for the NSIS flow.
-- **`pnpm i18n:zh-tw`** — script to regenerate Traditional Chinese locale strings from Simplified Chinese using OpenCC.
+- **Feishu Access panel** — credentials, pending pairing, code approval, allowlist.
+- **Pairing IPC** via bundled OpenClaw runtime.
+- **Tray menu localization**.
+- **Installer license** (English).
 
 ### Changed
 
-- **Shell UX** — refinements across Dashboard, Settings, Wizard, About, Updates, Provider, and Skills views; expanded i18n keys (en, zh-CN, zh-TW, and other locales).
-- **Electron builder** — extra resource entries for multilingual licenses where configured.
+- **Shell UX** refinements; expanded i18n keys (en and other supported locales).
 
 ## [0.1.1] - 2026-03-20
 
 ### Fixed
 
-- **Kuae Coding Plan behind HTTPS proxy:** Gateway child process now merges `NO_PROXY` / `no_proxy` for `coding-plan-endpoint.kuaecloud.net` and `.kuaecloud.net` on spawn so Kuae API calls can bypass broken local TLS through `HTTP(S)_PROXY`. Other providers unchanged. Opt out with `OPENCLAW_SKIP_KUAE_NO_PROXY=1`.
+- **Kuae Coding Plan behind HTTPS proxy:** Merge `NO_PROXY` for `.kuaecloud.net` on gateway spawn. Opt out: `OPENCLAW_SKIP_KUAE_NO_PROXY=1`.
 
 ### Updated
 
-- **Bundled OpenClaw runtime:** Updated bundled OpenClaw to the latest version `2026.3.13`, so OpenClaw Desktop supports the latest OpenClaw runtime.
+- **Bundled OpenClaw:** `2026.3.13`.
 
 ### Documentation
 
-- README Changelog and FAQ (English); Chinese notes in [README.zh-CN.md](./README.zh-CN.md).
+- README FAQ and changelog.
 
 ## [0.1.0] - 2026-03-10
 
 ### Added
-- Initial release of OpenClaw Desktop
+
+- Initial release of OpenClaw Desktop (later OpenClaw Desktop Plus)
 - NSIS Windows installer with bundled Node.js 22 and OpenClaw
-- 5-step setup wizard (Welcome → Model → Channel → Gateway → Complete)
-- 50+ AI provider support (Anthropic, OpenAI, Google, Moonshot, xAI, etc.)
-- Multi-channel configuration (Feishu, Telegram, Discord, Slack, WhatsApp)
-- Desktop management panels (Dashboard, Settings, Updates, LLM API, Skills, About)
-- Control UI iframe embedding with OpenClaw Gateway
-- System tray integration with gateway status
-- Auto-start at login support
-- Dark/Light/System theme support
-- 7-language internationalization (en, zh-CN, zh-TW, ja, ko, fr, es)
-- electron-updater auto-update with stable/beta channels
-- Pre-update backup with rotation
-- Post-update validation with doctor checks
-- Bundle integrity verification
-- Diagnostic export (redacted)
-- Configuration backup and restore
-- Single instance enforcement
-- Window state persistence
+- 5-step setup wizard
+- 50+ AI providers; multi-channel configuration
+- Desktop management panels and Control UI iframe
+- System tray, auto-start, themes
+- Multi-language UI (English and other non-Chinese locales retained in later builds)
+- electron-updater, backup/restore, diagnostics, single-instance, window state

@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { getProviderAuthMode, requiresApiKey } from '@/utils/provider-auth'
+import { getProviderAuthMode, requiresApiKey, supportsOAuthLogin } from '@/utils/provider-auth'
 import {
   Eye,
   EyeOff,
@@ -54,6 +54,7 @@ export function ModelSettingsSection() {
     customProviderId: '',
     customBaseUrl: '',
     customCompatibility: 'openai',
+    endpointUrl: '',
   }))
 
   const [targetKind, setTargetKind] = useState<TargetKind>('defaults')
@@ -69,14 +70,24 @@ export function ModelSettingsSection() {
 
   const [saving, setSaving] = useState(false)
   const [saveBanner, setSaveBanner] = useState<{ kind: 'ok' | 'warn' | 'err'; text: string } | null>(null)
+  const [gatewayModelIds, setGatewayModelIds] = useState<string[]>([])
+  const [oauthBusy, setOauthBusy] = useState(false)
+  const [oauthMessage, setOauthMessage] = useState('')
 
   const load = useCallback(async () => {
     setLoadState('loading')
     setLoadError(null)
     try {
-      const res = await window.electronAPI.modelSettingsLoad()
+      const [res, catalog] = await Promise.all([
+        window.electronAPI.modelSettingsLoad(),
+        window.electronAPI.modelsList().catch(() => ({ models: [] as Array<{ id: string }> })),
+      ])
       setSnapshot(res)
       setModelConfig(res.modelConfig)
+      const fromGw = (catalog.models ?? [])
+        .map((m) => m.id?.trim())
+        .filter((id): id is string => Boolean(id))
+      setGatewayModelIds([...new Set(fromGw)])
       const agents = res.agents ?? []
       if (agents.length > 0) {
         setAgentId((id) => (id && agents.some((a) => a.id === id) ? id : agents[0]!.id))
@@ -85,8 +96,11 @@ export function ModelSettingsSection() {
         setAgentId('')
       }
       const presets = MODELS_BY_PROVIDER[res.modelConfig.provider]
+      // Need parentheses: without them, `!presets || (!match && nonempty)` is wrong when
+      // presets exist but modelId is empty (would force custom mode incorrectly).
       const customModel =
-        !presets || !presets.some((m) => m.id === res.modelConfig.modelId) && res.modelConfig.modelId !== ''
+        !presets ||
+        (res.modelConfig.modelId !== '' && !presets.some((m) => m.id === res.modelConfig.modelId))
       setUseCustomModel(customModel)
       setLoadState('ok')
     } catch (e) {
@@ -103,6 +117,25 @@ export function ModelSettingsSection() {
   const hasPresets = Boolean(providerPresets)
   const authMode = getProviderAuthMode(modelConfig.provider)
 
+  const mergedModelChoices = useMemo(() => {
+    const presetIds = new Set((providerPresets ?? []).map((m) => m.id))
+    const providerPrefix = `${modelConfig.provider}/`
+    const fromGateway = gatewayModelIds
+      .filter((id) => {
+        if (presetIds.has(id)) return false
+        // Prefer models that match current provider, or bare ids / provider/model form.
+        if (id.includes('/')) return id.startsWith(providerPrefix) || id.split('/')[0] === modelConfig.provider
+        return true
+      })
+      .map((id) => ({ id, label: id, fromGateway: true as const }))
+    const presets = (providerPresets ?? []).map((m) => ({
+      id: m.id,
+      label: m.label,
+      fromGateway: false as const,
+    }))
+    return [...presets, ...fromGateway]
+  }, [providerPresets, gatewayModelIds, modelConfig.provider])
+
   const handleProviderChange = useCallback(
     (provider: ModelProvider) => {
       const presets = MODELS_BY_PROVIDER[provider]
@@ -117,6 +150,7 @@ export function ModelSettingsSection() {
         customProviderId: provider === 'custom' ? modelConfig.customProviderId ?? '' : '',
         customBaseUrl: provider === 'custom' ? modelConfig.customBaseUrl ?? '' : '',
         customCompatibility: provider === 'custom' ? modelConfig.customCompatibility ?? 'openai' : undefined,
+        endpointUrl: provider === 'custom' ? '' : modelConfig.endpointUrl ?? '',
         cloudflareAccountId: provider === 'cloudflare-ai-gateway' ? modelConfig.cloudflareAccountId ?? '' : '',
         cloudflareGatewayId: provider === 'cloudflare-ai-gateway' ? modelConfig.cloudflareGatewayId ?? '' : '',
       })
@@ -131,6 +165,7 @@ export function ModelSettingsSection() {
       modelConfig.customBaseUrl,
       modelConfig.customCompatibility,
       modelConfig.customProviderId,
+      modelConfig.endpointUrl,
       modelConfig.moonshotRegion,
     ],
   )
@@ -395,15 +430,15 @@ export function ModelSettingsSection() {
           <label htmlFor="settings-model-id" className="text-sm font-medium">
             {t('wizard.model.defaultModel')} <span className="text-destructive">*</span>
           </label>
-          {hasPresets && !useCustomModel ? (
+          {(hasPresets || mergedModelChoices.length > 0) && !useCustomModel ? (
             <Select value={modelConfig.modelId} onValueChange={handleModelSelect}>
               <SelectTrigger id="settings-model-id" className="w-full">
                 <SelectValue placeholder={t('wizard.model.selectModel')} />
               </SelectTrigger>
-              <SelectContent>
-                {providerPresets!.map((m) => (
+              <SelectContent className="max-h-[min(50vh,280px)]">
+                {mergedModelChoices.map((m) => (
                   <SelectItem key={m.id} value={m.id}>
-                    {m.label}
+                    {m.fromGateway ? `${m.label} · gateway` : m.label}
                   </SelectItem>
                 ))}
                 <SelectItem value={CUSTOM_MODEL_OPTION}>{t('wizard.model.customModelId')}</SelectItem>
@@ -423,12 +458,12 @@ export function ModelSettingsSection() {
                 placeholder={t('wizard.model.enterModelId')}
                 className="font-mono"
               />
-              {hasPresets ? (
+              {hasPresets || mergedModelChoices.length > 0 ? (
                 <button
                   type="button"
                   onClick={() => {
                     setUseCustomModel(false)
-                    const first = providerPresets![0]
+                    const first = mergedModelChoices[0]
                     if (first) setModelConfig((m) => ({ ...m, modelId: first.id }))
                   }}
                   className="text-xs text-primary hover:underline"
@@ -526,13 +561,67 @@ export function ModelSettingsSection() {
           </button>
         </div>
         <p className="text-xs text-muted-foreground">{t('shell.settings.modelApiKeyHint')}</p>
-        {authMode === 'oauth' && (
+        {supportsOAuthLogin(modelConfig.provider) && (
+          <div className="flex flex-col gap-1.5 pt-1">
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="w-fit"
+              disabled={oauthBusy}
+              onClick={() => {
+                void (async () => {
+                  setOauthBusy(true)
+                  setOauthMessage('')
+                  try {
+                    const result = await window.electronAPI.modelsAuthLogin({
+                      provider: modelConfig.provider,
+                      method: 'oauth',
+                    })
+                    setOauthMessage(result.message)
+                  } catch (err) {
+                    setOauthMessage(err instanceof Error ? err.message : String(err))
+                  } finally {
+                    setOauthBusy(false)
+                  }
+                })()
+              }}
+            >
+              {oauthBusy ? t('wizard.model.oauthSigningIn') : t('wizard.model.oauthSignIn')}
+            </Button>
+            {oauthMessage && <p className="text-xs text-muted-foreground">{oauthMessage}</p>}
+            <p className="text-xs text-muted-foreground">{t('wizard.model.oauthHint')}</p>
+          </div>
+        )}
+        {authMode === 'oauth' && !supportsOAuthLogin(modelConfig.provider) && (
           <p className="text-xs text-muted-foreground">{t('wizard.model.oauthHint')}</p>
         )}
         {authMode === 'none' && (
           <p className="text-xs text-muted-foreground">{t('wizard.model.noKeyHint')}</p>
         )}
       </fieldset>
+
+      {modelConfig.provider !== 'custom' && (
+        <fieldset className="space-y-1.5">
+          <label htmlFor="settings-endpoint-url" className="text-sm font-medium">
+            {t('wizard.model.endpointUrl')}
+          </label>
+          <Input
+            id="settings-endpoint-url"
+            type="url"
+            value={modelConfig.endpointUrl ?? ''}
+            onChange={(e) => {
+              setModelConfig((m) => ({ ...m, endpointUrl: e.target.value }))
+              setTestState({ status: 'idle', message: '' })
+              setSaveBanner(null)
+            }}
+            placeholder={t('wizard.model.endpointUrlPlaceholder')}
+            className="font-mono"
+            autoComplete="off"
+          />
+          <p className="text-xs text-muted-foreground">{t('wizard.model.endpointUrlHint')}</p>
+        </fieldset>
+      )}
 
       {modelConfig.provider === 'custom' && (
         <fieldset className="space-y-3">

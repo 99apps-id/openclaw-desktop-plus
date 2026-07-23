@@ -1,4 +1,4 @@
-/**
+﻿/**
  * Tray context menu strings (main process). Kept in sync with shell locales.
  */
 import { app } from 'electron'
@@ -39,38 +39,6 @@ const EN: TrayMenuStrings = {
   settingsFeishu: 'Feishu Settings',
   about: 'About',
   quit: 'Quit',
-}
-
-const ZH_CN: TrayMenuStrings = {
-  openApp: '打开 OpenClaw',
-  updateAvailable: '有更新可用',
-  gatewayRunning: '网关：运行中',
-  gatewayStarting: '网关：启动中',
-  gatewayError: '网关：错误',
-  gatewayStopped: '网关：已停止',
-  restartGateway: '重启网关',
-  openConfigDir: '打开配置目录',
-  settings: '设置',
-  settingsGeneral: '常规',
-  settingsFeishu: '飞书设置',
-  about: '关于',
-  quit: '退出',
-}
-
-const ZH_TW: TrayMenuStrings = {
-  openApp: '開啟 OpenClaw',
-  updateAvailable: '有更新可用',
-  gatewayRunning: '閘道：運行中',
-  gatewayStarting: '閘道：啟動中',
-  gatewayError: '閘道：錯誤',
-  gatewayStopped: '閘道：已停止',
-  restartGateway: '重啟閘道',
-  openConfigDir: '開啟設定目錄',
-  settings: '設定',
-  settingsGeneral: '一般',
-  settingsFeishu: '飛書設定',
-  about: '關於',
-  quit: '結束',
 }
 
 const FR: TrayMenuStrings = {
@@ -139,8 +107,6 @@ const ES: TrayMenuStrings = {
 
 const BY_LOCALE: Record<ShellLocale, TrayMenuStrings> = {
   en: EN,
-  'zh-CN': ZH_CN,
-  'zh-TW': ZH_TW,
   fr: FR,
   ja: JA,
   ko: KO,
@@ -169,16 +135,6 @@ export interface FeishuPairingNotificationCopy {
 /** System notification when new Feishu pairing pending (same locale as tray). */
 export function getFeishuPairingNotificationStrings(locale: ShellLocale): FeishuPairingNotificationCopy {
   switch (locale) {
-    case 'zh-CN':
-      return {
-        title: 'OpenClaw 桌面版',
-        bodyTemplate: '新的飞书 DM 待审批，配对码：{{code}}',
-      }
-    case 'zh-TW':
-      return {
-        title: 'OpenClaw 桌面版',
-        bodyTemplate: '新的飛書 DM 待審批，配對碼：{{code}}',
-      }
     case 'ja':
       return {
         title: 'OpenClaw',
@@ -201,7 +157,7 @@ export function getFeishuPairingNotificationStrings(locale: ShellLocale): Feishu
       }
     default:
       return {
-        title: 'OpenClaw Desktop',
+        title: 'OpenClaw Desktop Plus',
         bodyTemplate: 'New Feishu DM pairing request, code: {{code}}',
       }
   }

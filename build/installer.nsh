@@ -1,18 +1,25 @@
-; NSIS 自定义脚本 — 由 electron-builder 的 nsis.include 引入（必须保留此文件并纳入 Git）
+; NSIS custom script — included via electron-builder nsis.include (keep this file in Git).
 ;
-; 1) 卸载前若主程序仍存在，则执行 --clear-login-item
-; 2) 在「安装目录」与「正在安装」之间增加一页：校验最终安装路径的最后一级文件夹名是否含空格。
-;    与 assistedInstaller.nsh 中 instFilesPre 行为一致：若 INSTDIR 未含 APP_FILENAME 子目录则先拼接再校验。
-;    这样可拦截 ...\OpenClaw Desktop，且不拒绝父级为 Program Files（空格在上一级）。
+; 1) Before uninstall, if the main exe still exists, run --clear-login-item.
+; 2) Between the install-dir page and "Installing", validate that the final install
+;    path leaf folder name contains no spaces (same idea as assistedInstaller.nsh
+;    instFilesPre: append APP_FILENAME when missing, then check).
+;    This rejects e.g. ...\OpenClaw Desktop Plus while still allowing Program Files
+;    (spaces in a parent folder are OK).
 ;
-; electron-builder 在生成卸载程序时会单独跑一次 makensis 并定义 BUILD_UNINSTALLER；该 pass 不会插入
-; Page custom，若仍定义 PathValidate* 会触发 warning 6010，且 -WX 下视为错误。故安装页与相关函数仅参与正式安装编译。
+; electron-builder runs makensis again for the uninstaller with BUILD_UNINSTALLER;
+; that pass does not insert Page custom — defining PathValidate* there triggers
+; warning 6010 (fatal under -WX). Install pages/functions are install-only.
 ;
-; 不要 !include "StrContains.nsh"：assistedInstaller.nsh 已包含，再包含会报 STR_HAYSTACK already declared。
+; Do not !include "StrContains.nsh": assistedInstaller.nsh already includes it.
 
 !macro customUnInit
-  IfFileExists "$INSTDIR\OpenClaw Desktop.exe" 0 +2
+  IfFileExists "$INSTDIR\OpenClaw Desktop Plus.exe" 0 +3
+  ExecWait '"$INSTDIR\OpenClaw Desktop Plus.exe" --clear-login-item' $0
+  Goto clear_login_item_done
+  IfFileExists "$INSTDIR\OpenClaw Desktop.exe" 0 clear_login_item_done
   ExecWait '"$INSTDIR\OpenClaw Desktop.exe" --clear-login-item' $0
+  clear_login_item_done:
 !macroend
 
 !macro customPageAfterChangeDir
@@ -23,13 +30,13 @@
 
 !ifndef BUILD_UNINSTALLER
 
-; 无 UI：校验仅在 Leave 执行，避免 !include nsDialogs.nsh（可能与 MUI 模板重复包含）
+; No UI: validation runs on Leave only (avoids double-including nsDialogs.nsh with MUI).
 Function PathValidateShow
   IfSilent path_validate_show_skip
 path_validate_show_skip:
 FunctionEnd
 
-; 等价于 ${StrContains} $R3 "${APP_FILENAME}" $R9：找到则 $R3 非空（此处写 "1"）
+; Equivalent to ${StrContains} $R3 "${APP_FILENAME}" $R9 — non-empty $R3 means found ("1").
 Function PathValidateLeave
   StrCpy $R9 "$INSTDIR"
   StrCpy $R3 ""
@@ -68,7 +75,7 @@ after_append_app_subdir:
   Call StrHasSpace
   Pop $R1
   IntCmp $R1 0 path_validate_ok
-  MessageBox MB_OK|MB_ICONEXCLAMATION "The install folder name cannot contain spaces.$\n$\nUse e.g. OpenClawDesktop instead of OpenClaw Desktop.$\n$\n安装文件夹名称不能包含空格，请使用例如 OpenClawDesktop。"
+  MessageBox MB_OK|MB_ICONEXCLAMATION "The install folder name cannot contain spaces.$\n$\nUse e.g. OpenClawDesktopPlus instead of OpenClaw Desktop Plus."
   Abort
 path_validate_ok:
 FunctionEnd

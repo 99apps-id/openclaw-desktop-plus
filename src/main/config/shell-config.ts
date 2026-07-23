@@ -1,6 +1,6 @@
 /**
  * Desktop shell config read/write.
- * Path: %APPDATA%\OpenClaw Desktop\config.json
+ * Path: %APPDATA%\OpenClaw Desktop Plus\config.json
  * Separate from OpenClaw main config; stores shell-only settings.
  */
 
@@ -8,10 +8,30 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { app } from 'electron'
 import type { ShellConfig } from '../../shared/types.js'
-import { APP_NAME, DEFAULT_GATEWAY_PORT, SHELL_CONFIG_FILE } from '../../shared/constants.js'
+import {
+  APP_NAME,
+  APP_NAME_LEGACY,
+  DEFAULT_GATEWAY_PORT,
+  SHELL_CONFIG_FILE,
+} from '../../shared/constants.js'
+import { normalizeToShellLocale } from '../../shared/shell-locale.js'
 
 function getShellConfigPath(): string {
-  return path.join(app.getPath('appData'), APP_NAME, SHELL_CONFIG_FILE)
+  const nextDir = path.join(app.getPath('appData'), APP_NAME)
+  const nextPath = path.join(nextDir, SHELL_CONFIG_FILE)
+  if (fs.existsSync(nextPath)) return nextPath
+
+  // One-time migrate from pre-"Plus" AppData folder so settings survive the rename.
+  const legacyPath = path.join(app.getPath('appData'), APP_NAME_LEGACY, SHELL_CONFIG_FILE)
+  if (fs.existsSync(legacyPath)) {
+    try {
+      fs.mkdirSync(nextDir, { recursive: true })
+      fs.copyFileSync(legacyPath, nextPath)
+    } catch {
+      return legacyPath
+    }
+  }
+  return nextPath
 }
 
 /** Default shell config */
@@ -48,7 +68,12 @@ export function readShellConfig(): ShellConfig {
     const raw = fs.readFileSync(configPath, 'utf-8')
     const parsed = JSON.parse(raw) as unknown
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-      return { ...getDefaultShellConfig(), ...parsed } as ShellConfig
+      const merged = { ...getDefaultShellConfig(), ...parsed } as ShellConfig
+      // Drop removed locales (e.g. former zh-CN / zh-TW) → English or another supported locale.
+      if (typeof merged.locale === 'string') {
+        merged.locale = normalizeToShellLocale(merged.locale)
+      }
+      return merged
     }
     return getDefaultShellConfig()
   } catch (err) {

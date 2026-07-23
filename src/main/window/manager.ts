@@ -11,6 +11,7 @@ import {
   isShellCustomProtocolUrl,
   listShellRendererIndexCandidates,
 } from '../shell-protocol.js'
+import { attachControlUiChatEnhance } from '../control-ui/attach-chat-enhance.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -167,6 +168,7 @@ export class WindowManager {
     this.attachNavigationGuards(window, port)
     this.attachBoundsPersistence(window)
     this.attachCloseBehavior(window)
+    attachControlUiChatEnhance(window)
 
     window.on('closed', () => {
       if (this.mainWindow === window) {

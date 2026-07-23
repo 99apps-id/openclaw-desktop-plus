@@ -6,8 +6,6 @@ import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 
 import en from './locales/en.json'
-import zhCN from './locales/zh-CN.json'
-import zhTW from './locales/zh-TW.json'
 import fr from './locales/fr.json'
 import ja from './locales/ja.json'
 import ko from './locales/ko.json'
@@ -27,8 +25,6 @@ const DEFAULT_LOCALE: ShellLocale = 'en'
 /** Fixed labels for the language dropdown (native script; avoids nesting i18n keys). */
 export const SHELL_LOCALE_LABELS: Record<ShellLocale, string> = {
   en: 'English',
-  'zh-CN': '简体中文',
-  'zh-TW': '繁體中文',
   fr: 'Français',
   ja: '日本語',
   ko: '한국어',
@@ -72,7 +68,7 @@ async function resolveInitialLocale(): Promise<ShellLocale> {
     try {
       const cfg = await raceWithTimeout(window.electronAPI.shellGetConfig(), IPC_LOCALE_TIMEOUT_MS)
       if (cfg?.locale) {
-        return cfg.locale
+        return normalizeToShellLocale(cfg.locale)
       }
     } catch {
       // fall through
@@ -113,19 +109,13 @@ export async function initI18n(): Promise<void> {
   await i18n.use(initReactI18next).init({
     resources: {
       en: { translation: en },
-      'zh-CN': { translation: zhCN },
-      'zh-TW': { translation: zhTW },
       fr: { translation: fr },
       ja: { translation: ja },
       ko: { translation: ko },
       es: { translation: es },
     },
     lng,
-    /** zh-TW 翻譯未覆蓋的鍵回退到 zh-CN，再回退到英文 */
-    fallbackLng: {
-      'zh-TW': ['zh-CN', 'en'],
-      default: [DEFAULT_LOCALE],
-    },
+    fallbackLng: DEFAULT_LOCALE,
     interpolation: {
       escapeValue: false,
     },

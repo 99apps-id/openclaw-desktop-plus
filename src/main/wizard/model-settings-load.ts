@@ -3,6 +3,7 @@
  */
 
 import type { ModelConfig, ModelProvider, OpenClawConfig } from '../../shared/types.js'
+import { endpointOverrideFromProviderBaseUrl } from './provider-seed-base.js'
 
 const KNOWN_PROVIDERS = new Set<ModelProvider>([
   'anthropic',
@@ -58,6 +59,7 @@ function emptyModelConfig(): ModelConfig {
     customProviderId: '',
     customBaseUrl: '',
     customCompatibility: 'openai',
+    endpointUrl: '',
   }
 }
 
@@ -134,6 +136,13 @@ export function inferModelConfigFromOpenClaw(config: OpenClawConfig): ModelConfi
     provider,
     modelId: modelPart,
     moonshotRegion,
+    endpointUrl: endpointOverrideFromProviderBaseUrl(
+      provider,
+      typeof config.models?.providers?.[providerPart]?.baseUrl === 'string'
+        ? (config.models.providers[providerPart]!.baseUrl as string)
+        : undefined,
+      { moonshotRegion },
+    ),
     ...(cloudflareAccountId ? { cloudflareAccountId } : {}),
     ...(cloudflareGatewayId ? { cloudflareGatewayId } : {}),
   }

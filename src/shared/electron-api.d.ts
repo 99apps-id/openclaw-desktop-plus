@@ -179,13 +179,23 @@ export interface ElectronAPI {
   updateVerifyBundle: () => Promise<BundleVerifyResult>
   updatePrestartCheck: () => Promise<PrestartCheckFrontend>
   updateGetPostUpdateValidation: () => Promise<PostUpdateValidationResult>
-  diagnosticsRun: () => Promise<DiagnosticReport>
+  diagnosticsRun: (opts?: { fix?: boolean }) => Promise<DiagnosticReport>
   diagnosticsSummary: () => Promise<{ ok: boolean; summary: string; topIssues: DiagnosticItem[] }>
 
   modelsList: () => Promise<{ models: Array<{ id: string; name?: string; provider?: string }> }>
   modelsSetDefault: (opts: { modelId: string } | { primary: string }) => Promise<{ ok: boolean }>
   modelsSetFallbacks: (opts: { fallbacks: string[] }) => Promise<{ ok: boolean }>
   modelsSetAliases: (opts: { aliases: Record<string, { alias?: string }> }) => Promise<{ ok: boolean }>
+  modelsAuthLogin: (opts: {
+    provider: string
+    method?: 'oauth' | 'api-key'
+  }) => Promise<{ ok: boolean; exitCode: number; message: string; stdout: string; stderr: string }>
+  gatewayApplyConnection: (opts: {
+    mode: 'local' | 'remote'
+    url?: string
+    token?: string
+    transport?: 'direct' | 'ssh'
+  }) => Promise<GatewayStatus>
 
   pluginsList: () => Promise<{ plugins: PluginInfo[]; workspaceDir?: string }>
   pluginsToggle: (opts: { id: string; enabled: boolean } | { pluginId: string; enabled: boolean }) => Promise<{ ok: boolean; message?: string }>
@@ -201,6 +211,9 @@ export interface ElectronAPI {
   pairingListApproved: (opts: { channel: 'feishu' }) => Promise<PairingListApprovedResult>
   pairingApprove: (opts: { channel: 'feishu'; code: string; openId?: string }) => Promise<PairingApproveResult>
   pairingRemoveApproved: (opts: { channel: 'feishu'; openId: string }) => Promise<{ ok: boolean }>
+
+  /** Native multi-file picker; injects into Control UI chat composer */
+  chatPickAttachments: () => Promise<{ ok: boolean; count: number; skipped: string[]; message?: string }>
 
   // ─── Event subscriptions ───────────────────────────────────────────────────
   onGatewayStatusChange: (callback: (status: GatewayStatus) => void) => Unsubscribe

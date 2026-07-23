@@ -34,6 +34,10 @@ export interface DashboardViewProps {
   onNavigateToUpdates?: () => void
   /** Navigate to Feishu Settings (pairing / allowlist) */
   onNavigateToFeishuSettings?: () => void
+  /** Navigate to Models editor */
+  onNavigateToModels?: () => void
+  /** Navigate to Channels manager */
+  onNavigateToChannels?: () => void
   /** Whether an update is available */
   updateAvailable?: boolean
   /** Latest version string */
@@ -96,6 +100,8 @@ export function DashboardView({
   onNavigateToSkills,
   onNavigateToUpdates,
   onNavigateToFeishuSettings,
+  onNavigateToModels,
+  onNavigateToChannels,
   updateAvailable,
   updateVersion,
   onDismissUpdateNotice,
@@ -106,6 +112,12 @@ export function DashboardView({
   const [lastError, setLastError] = useState<string | null>(null)
   const [restarting, setRestarting] = useState(false)
   const [hasFeishuChannel, setHasFeishuChannel] = useState(false)
+  const [doctorRunning, setDoctorRunning] = useState(false)
+  const [doctorReport, setDoctorReport] = useState<{
+    ok: boolean
+    items: Array<{ id: string; level: string; message: string; fix?: string }>
+  } | null>(null)
+  const [doctorError, setDoctorError] = useState<string | null>(null)
 
   const versionLabels = useMemo(
     () =>
@@ -200,6 +212,19 @@ export function DashboardView({
 
   const handleOpenLogDir = () => {
     void window.electronAPI.systemOpenLogDir()
+  }
+
+  const runDoctor = async (fix: boolean) => {
+    setDoctorRunning(true)
+    setDoctorError(null)
+    try {
+      const report = await window.electronAPI.diagnosticsRun(fix ? { fix: true } : undefined)
+      setDoctorReport(report)
+    } catch (e) {
+      setDoctorError(e instanceof Error ? e.message : t('shell.dashboard.doctorFailed'))
+    } finally {
+      setDoctorRunning(false)
+    }
   }
 
   const comingSoon = t('shell.status.comingSoon')
@@ -300,6 +325,71 @@ export function DashboardView({
         )}
 
         <section
+          className="rounded-lg border border-border bg-card p-4 space-y-3"
+          aria-label={t('shell.dashboard.doctorAria')}
+        >
+          <div className="flex items-center gap-2">
+            <Wrench className="w-4 h-4 text-muted-foreground" aria-hidden />
+            <h2 className="text-sm font-medium">{t('shell.dashboard.doctorTitle')}</h2>
+          </div>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            {t('shell.dashboard.doctorDesc')}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={() => void runDoctor(false)} disabled={doctorRunning}>
+              {doctorRunning ? (
+                <RefreshCw className="w-3.5 h-3.5 animate-spin" aria-hidden />
+              ) : (
+                <Wrench className="w-3.5 h-3.5" aria-hidden />
+              )}
+              {t('shell.dashboard.doctorRun')}
+            </Button>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => void runDoctor(true)}
+              disabled={doctorRunning}
+            >
+              {t('shell.dashboard.doctorFix')}
+            </Button>
+          </div>
+          {doctorError ? (
+            <p className="text-xs text-destructive" role="alert">
+              {doctorError}
+            </p>
+          ) : null}
+          {doctorReport ? (
+            <div className="rounded-md border border-border bg-muted/20 p-3 space-y-2 max-h-48 overflow-y-auto">
+              <p
+                className={`text-xs font-medium ${doctorReport.ok ? 'text-emerald-600' : 'text-amber-700 dark:text-amber-300'}`}
+              >
+                {doctorReport.ok
+                  ? t('shell.dashboard.doctorOk')
+                  : t('shell.dashboard.doctorIssues', {
+                      count: doctorReport.items.filter(
+                        (i) => i.level === 'error' || i.level === 'warning',
+                      ).length,
+                    })}
+              </p>
+              <ul className="space-y-1.5">
+                {doctorReport.items
+                  .filter((i) => i.level !== 'pass')
+                  .slice(0, 12)
+                  .map((item) => (
+                    <li key={item.id} className="text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground/80">[{item.level}]</span>{' '}
+                      {item.message}
+                      {item.fix ? (
+                        <span className="block text-[10px] opacity-80">→ {item.fix}</span>
+                      ) : null}
+                    </li>
+                  ))}
+              </ul>
+            </div>
+          ) : null}
+        </section>
+
+        <section
           className="rounded-lg border border-border bg-card p-4"
           aria-label={t('shell.dashboard.versionsAria')}
         >
@@ -331,6 +421,24 @@ export function DashboardView({
         <section aria-label={t('shell.dashboard.quickActionsAria')}>
           <h2 className="text-sm font-medium mb-3">{t('shell.dashboard.quickActions')}</h2>
           <div className="grid gap-2">
+            <ActionCard
+              title={t('shell.models.title')}
+              description={t('shell.models.subtitle')}
+              icon={<Key className="w-5 h-5 text-muted-foreground" aria-hidden />}
+              onClick={onNavigateToModels}
+              disabled={!onNavigateToModels}
+              comingSoonSuffix={comingSoon}
+              updateAvailableAria={updateAria}
+            />
+            <ActionCard
+              title={t('shell.channels.title')}
+              description={t('shell.channels.subtitle')}
+              icon={<MessageSquare className="w-5 h-5 text-muted-foreground" aria-hidden />}
+              onClick={onNavigateToChannels}
+              disabled={!onNavigateToChannels}
+              comingSoonSuffix={comingSoon}
+              updateAvailableAria={updateAria}
+            />
             <ActionCard
               title={t('shell.dashboard.logs')}
               description={t('shell.dashboard.logsDesc')}

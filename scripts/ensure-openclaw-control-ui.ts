@@ -49,24 +49,41 @@ async function fileExists(p: string): Promise<boolean> {
   }
 }
 
+/**
+ * Map npm `openclaw` version → GitHub tag candidates.
+ * Exact tag first; npm republish suffixes (`2026.7.1-2`) fall back to the base release tag
+ * (`v2026.7.1`) because GitHub often has no `vYYYY.M.D-N` ref.
+ */
+export function gitTagCandidatesForNpmVersion(version: string): string[] {
+  const raw = version.trim()
+  if (!raw) throw new Error('OpenClaw version is empty')
+  const v = raw.startsWith('v') ? raw.slice(1) : raw
+  const exact = `v${v}`
+  const candidates = [exact]
+  // npm republish only: calendar version + numeric suffix (not -beta.N / -alpha.N)
+  const republish = /^(\d{4}\.\d{1,2}\.\d{1,2})-(\d+)$/.exec(v)
+  if (republish) {
+    candidates.push(`v${republish[1]}`)
+  }
+  return [...new Set(candidates)]
+}
+
 function gitTagForNpmVersion(version: string): string {
-  const v = version.trim()
-  if (!v) throw new Error('OpenClaw version is empty')
-  return v.startsWith('v') ? v : `v${v}`
+  return gitTagCandidatesForNpmVersion(version)[0]!
 }
 
 function tarballUrlForTag(tag: string): string {
   return `https://codeload.github.com/${GITHUB_REPO}/tar.gz/${tag}`
 }
 
-/** Full URL override (e.g. mirror). Must be the same tarball as the tag. */
-function resolveTarballUrl(tag: string): string {
+/** Full URL override (e.g. mirror). Must be the same tarball as the resolved tag. */
+function resolveTarballUrlOverride(): string | null {
   const override = process.env.OPENCLAW_SOURCE_TARBALL_URL?.trim()
   if (override) {
     console.log('  [control-ui] using OPENCLAW_SOURCE_TARBALL_URL for source tarball')
     return override
   }
-  return tarballUrlForTag(tag)
+  return null
 }
 
 function tarballFetchRetries(): number {
@@ -209,10 +226,28 @@ async function ensureOpenclawRootDepsForBundledSrc(
   if (!(await fileExists(upstreamPath))) {
     throw new Error(`[control-ui] missing OpenClaw package.json: ${upstreamPath}`)
   }
+  const bundledPkgPath = join(openclawRoot, 'package.json')
+  // Preserve the npm-published manifest (no workspace:*). Restoring the GitHub monorepo
+  // package.json breaks later `npm install` steps (Feishu SDK, Slack patches, version checks).
+  const bundledPkgBackup = (await fileExists(bundledPkgPath))
+    ? await readFile(bundledPkgPath, 'utf8')
+    : null
   const upstream = JSON.parse(await readFile(upstreamPath, 'utf8')) as OpenclawRootPackageJson
-  const dependencies = upstream.dependencies ?? {}
+  const dependencies = { ...(upstream.dependencies ?? {}) }
+  const droppedWorkspace: string[] = []
+  for (const [name, range] of Object.entries(dependencies)) {
+    if (typeof range === 'string' && range.startsWith('workspace:')) {
+      droppedWorkspace.push(name)
+      delete dependencies[name]
+    }
+  }
+  if (droppedWorkspace.length > 0) {
+    console.log(
+      `  [control-ui] omitting workspace:* root deps from npm install stub: ${droppedWorkspace.join(', ')}`,
+    )
+  }
   if (Object.keys(dependencies).length === 0) {
-    throw new Error(`[control-ui] OpenClaw package.json has no dependencies: ${upstreamPath}`)
+    throw new Error(`[control-ui] OpenClaw package.json has no installable dependencies: ${upstreamPath}`)
   }
   const stub: Record<string, unknown> = {
     name: 'openclaw-desktop-control-ui-openclawroot',
@@ -222,18 +257,281 @@ async function ensureOpenclawRootDepsForBundledSrc(
   }
   const optional = upstream.optionalDependencies
   if (optional && Object.keys(optional).length > 0) {
-    stub.optionalDependencies = optional
+    const cleanedOptional = { ...optional }
+    for (const [name, range] of Object.entries(cleanedOptional)) {
+      if (typeof range === 'string' && range.startsWith('workspace:')) {
+        delete cleanedOptional[name]
+      }
+    }
+    if (Object.keys(cleanedOptional).length > 0) {
+      stub.optionalDependencies = cleanedOptional
+    }
   }
-  await writeFile(join(openclawRoot, 'package.json'), `${JSON.stringify(stub, null, 2)}\n`, 'utf8')
+  await writeFile(bundledPkgPath, `${JSON.stringify(stub, null, 2)}\n`, 'utf8')
   execSync('npm install --no-audit --no-fund --legacy-peer-deps', {
     cwd: openclawRoot,
     stdio: 'inherit',
     env: { ...process.env, NODE_ENV: '' },
   })
-  // Restore the real OpenClaw manifest (name/version/bin/files). The stub uses 0.0.0 and breaks
-  // version checks and tooling; node_modules already matches upstream dependency keys.
-  const upstreamPkgRaw = await readFile(upstreamPath, 'utf8')
-  await writeFile(join(openclawRoot, 'package.json'), `${upstreamPkgRaw.trimEnd()}\n`, 'utf8')
+  if (bundledPkgBackup) {
+    await writeFile(bundledPkgPath, `${bundledPkgBackup.trimEnd()}\n`, 'utf8')
+    console.log('  [control-ui] restored npm package.json after root deps install')
+  } else {
+    // No prior npm manifest — fall back to GitHub package.json with workspace:* stripped.
+    const upstreamPkg = JSON.parse(await readFile(upstreamPath, 'utf8')) as Record<string, unknown>
+    if (upstreamPkg.dependencies && typeof upstreamPkg.dependencies === 'object') {
+      const deps = { ...(upstreamPkg.dependencies as Record<string, string>) }
+      for (const [name, range] of Object.entries(deps)) {
+        if (typeof range === 'string' && range.startsWith('workspace:')) delete deps[name]
+      }
+      upstreamPkg.dependencies = deps
+    }
+    if (upstreamPkg.optionalDependencies && typeof upstreamPkg.optionalDependencies === 'object') {
+      const opt = { ...(upstreamPkg.optionalDependencies as Record<string, string>) }
+      for (const [name, range] of Object.entries(opt)) {
+        if (typeof range === 'string' && range.startsWith('workspace:')) delete opt[name]
+      }
+      upstreamPkg.optionalDependencies = opt
+    }
+    await writeFile(bundledPkgPath, `${JSON.stringify(upstreamPkg, null, 2)}\n`, 'utf8')
+  }
+}
+
+type WorkspacePkgJson = {
+  name?: string
+  dependencies?: Record<string, string>
+  scripts?: Record<string, string>
+}
+
+/** Map package name → directory under `packages/` (from extracted monorepo). */
+async function mapOpenClawPackageDirs(packagesRoot: string): Promise<Map<string, string>> {
+  const map = new Map<string, string>()
+  if (!(await fileExists(packagesRoot))) return map
+  const ents = await readdir(packagesRoot, { withFileTypes: true })
+  for (const ent of ents) {
+    if (!ent.isDirectory()) continue
+    const dir = join(packagesRoot, ent.name)
+    const pkgPath = join(dir, 'package.json')
+    if (!(await fileExists(pkgPath))) continue
+    try {
+      const pkg = JSON.parse(await readFile(pkgPath, 'utf8')) as WorkspacePkgJson
+      if (pkg.name) map.set(pkg.name, dir)
+    } catch {
+      // ignore invalid package.json
+    }
+  }
+  return map
+}
+
+async function rewriteWorkspaceProtocolInPackageJson(
+  pkgJsonPath: string,
+  nameToRelFile: Map<string, string>,
+): Promise<number> {
+  const raw = await readFile(pkgJsonPath, 'utf8')
+  const pkg = JSON.parse(raw) as WorkspacePkgJson
+  let changed = 0
+  if (!pkg.dependencies) return 0
+  for (const [depName, range] of Object.entries(pkg.dependencies)) {
+    if (!range.startsWith('workspace:')) continue
+    const rel = nameToRelFile.get(depName)
+    if (!rel) {
+      throw new Error(
+        `[control-ui] unresolved workspace dep ${depName} in ${pkgJsonPath} (no local package dir)`,
+      )
+    }
+    pkg.dependencies[depName] = `file:${rel}`
+    changed++
+  }
+  if (changed > 0) {
+    await writeFile(pkgJsonPath, `${JSON.stringify(pkg, null, 2)}\n`, 'utf8')
+  }
+  return changed
+}
+
+/**
+ * OpenClaw 2026.7+ Control UI depends on private monorepo packages via `workspace:*`
+ * (e.g. `@openclaw/media-core`). npm cannot resolve that outside the pnpm workspace, so we
+ * copy the needed packages, rewrite deps to `file:`, build them, then let `ui/` install.
+ */
+async function materializeOpenClawUiWorkspacePackages(
+  openclawRoot: string,
+  srcRoot: string,
+  uiDest: string,
+): Promise<void> {
+  const uiPkgPath = join(uiDest, 'package.json')
+  const uiPkg = JSON.parse(await readFile(uiPkgPath, 'utf8')) as WorkspacePkgJson
+  const workspaceDepNames = Object.entries(uiPkg.dependencies ?? {})
+    .filter(([, range]) => range.startsWith('workspace:'))
+    .map(([name]) => name)
+  const filePackageDepNames = Object.entries(uiPkg.dependencies ?? {})
+    .filter(([, range]) => typeof range === 'string' && range.startsWith('file:../packages/'))
+    .map(([name]) => name)
+
+  if (workspaceDepNames.length === 0 && filePackageDepNames.length === 0) {
+    console.log('  [control-ui] no workspace/file packages deps in ui/ — skip package materialize')
+    return
+  }
+
+  // If a previous failed build left `file:../packages/*` but no dist, still materialize from srcRoot.
+  const neededSeed = workspaceDepNames.length > 0 ? workspaceDepNames : filePackageDepNames
+  // Restore workspace protocol so rewrite path below is consistent when seed came from file: deps.
+  if (workspaceDepNames.length === 0 && filePackageDepNames.length > 0) {
+    for (const name of filePackageDepNames) {
+      if (uiPkg.dependencies) uiPkg.dependencies[name] = 'workspace:*'
+    }
+    await writeFile(uiPkgPath, `${JSON.stringify(uiPkg, null, 2)}\n`, 'utf8')
+  }
+
+  const srcPackages = join(srcRoot, 'packages')
+  const nameToSrcDir = await mapOpenClawPackageDirs(srcPackages)
+  const needed = new Set<string>(neededSeed)
+
+  // Expand transitive workspace deps (BFS).
+  const queue = [...needed]
+  while (queue.length > 0) {
+    const name = queue.shift()!
+    const srcDir = nameToSrcDir.get(name)
+    if (!srcDir) {
+      throw new Error(
+        `[control-ui] ui depends on ${name} (workspace:*) but packages/ has no matching package.json`,
+      )
+    }
+    const nested = JSON.parse(await readFile(join(srcDir, 'package.json'), 'utf8')) as WorkspacePkgJson
+    for (const [depName, range] of Object.entries(nested.dependencies ?? {})) {
+      if (!range.startsWith('workspace:')) continue
+      if (needed.has(depName)) continue
+      needed.add(depName)
+      queue.push(depName)
+    }
+  }
+
+  const destPackages = join(openclawRoot, 'packages')
+  await mkdir(destPackages, { recursive: true })
+
+  const nameToDestDir = new Map<string, string>()
+  for (const name of needed) {
+    const srcDir = nameToSrcDir.get(name)!
+    const folder = srcDir.split(/[/\\]/).pop()!
+    const destDir = join(destPackages, folder)
+    await rm(destDir, { recursive: true, force: true })
+    await cp(srcDir, destDir, { recursive: true })
+    // Drop any vendored node_modules from the tarball to force a clean install.
+    await rm(join(destDir, 'node_modules'), { recursive: true, force: true })
+    nameToDestDir.set(name, destDir)
+    console.log(`  [control-ui] materialized workspace package ${name} → packages/${folder}`)
+  }
+
+  // Rewrite workspace:* → file: relative paths (ui + each package).
+  const uiNameToRel = new Map<string, string>()
+  for (const [name, destDir] of nameToDestDir) {
+    const folder = destDir.split(/[/\\]/).pop()!
+    uiNameToRel.set(name, `../packages/${folder}`)
+  }
+  await rewriteWorkspaceProtocolInPackageJson(uiPkgPath, uiNameToRel)
+
+  for (const destDir of nameToDestDir.values()) {
+    const pkgNameToRel = new Map<string, string>()
+    for (const [name, otherDir] of nameToDestDir) {
+      if (otherDir === destDir) continue
+      const folder = otherDir.split(/[/\\]/).pop()!
+      pkgNameToRel.set(name, `../${folder}`)
+    }
+    await rewriteWorkspaceProtocolInPackageJson(join(destDir, 'package.json'), pkgNameToRel)
+  }
+
+  // Build leaf → dependents (simple multi-pass: build any package whose workspace deps already built).
+  const built = new Set<string>()
+  const pending = new Set(needed)
+  let guard = 0
+  while (pending.size > 0 && guard < 20) {
+    guard++
+    let progress = false
+    for (const name of [...pending]) {
+      const destDir = nameToDestDir.get(name)!
+      const pkg = JSON.parse(await readFile(join(destDir, 'package.json'), 'utf8')) as WorkspacePkgJson
+      const wsDeps = Object.entries(pkg.dependencies ?? {})
+        .filter(([, r]) => r.startsWith('file:../'))
+        .map(([n]) => n)
+        .filter((n) => needed.has(n))
+      if (wsDeps.some((d) => !built.has(d))) continue
+
+      console.log(`  [control-ui] building workspace package ${name}...`)
+      execSync('npm install --no-audit --no-fund', {
+        cwd: destDir,
+        stdio: 'inherit',
+        env: { ...process.env, NODE_ENV: '' },
+      })
+      if (pkg.scripts?.build) {
+        // Monorepo packages call `tsdown` from the workspace root; install locally for desktop builds.
+        if (/\btsdown\b/.test(pkg.scripts.build)) {
+          execSync('npm install --no-save --no-audit --no-fund tsdown@0.22.1', {
+            cwd: destDir,
+            stdio: 'inherit',
+            env: { ...process.env, NODE_ENV: '' },
+          })
+        }
+        execSync('npm run build', {
+          cwd: destDir,
+          stdio: 'inherit',
+          env: { ...process.env, NODE_ENV: '' },
+        })
+      }
+      built.add(name)
+      pending.delete(name)
+      progress = true
+    }
+    if (!progress) {
+      throw new Error(
+        `[control-ui] could not build workspace packages (cycle or missing build?): ${[...pending].join(', ')}`,
+      )
+    }
+  }
+
+  console.log(`  [control-ui] workspace packages ready (${built.size})`)
+}
+
+/** Hoist `@openclaw/*` installed under ui/node_modules to the OpenClaw root for Vite resolution. */
+async function hoistOpenClawScopedModules(openclawRoot: string, uiDest: string): Promise<void> {
+  const from = join(uiDest, 'node_modules', '@openclaw')
+  if (!(await fileExists(from))) return
+  const toParent = join(openclawRoot, 'node_modules')
+  const to = join(toParent, '@openclaw')
+  await mkdir(toParent, { recursive: true })
+  await rm(to, { recursive: true, force: true })
+  await cp(from, to, { recursive: true })
+  console.log('  [control-ui] hoisted ui/node_modules/@openclaw → openclaw root node_modules')
+}
+
+/**
+ * Packages imported by Control UI but not declared in ui/package.json (resolved via pnpm in the
+ * OpenClaw monorepo). Keep versions loose enough for npm to resolve with lit@3.
+ */
+const CONTROL_UI_EXTRA_NPM_DEPS = ['@lit/context@^1.1.0'] as const
+
+async function ensureControlUiExtraNpmDeps(uiDest: string): Promise<void> {
+  console.log(`  [control-ui] installing extra UI deps: ${CONTROL_UI_EXTRA_NPM_DEPS.join(', ')}`)
+  execSync(`npm install --no-audit --no-fund --no-save ${CONTROL_UI_EXTRA_NPM_DEPS.join(' ')}`, {
+    cwd: uiDest,
+    stdio: 'inherit',
+    env: { ...process.env, NODE_ENV: '' },
+  })
+}
+
+/** Fail fast if Control UI `@openclaw/*` packages under ui/node_modules are empty/missing. */
+async function assertControlUiOpenClawPackages(uiDest: string): Promise<void> {
+  const required = [
+    join(uiDest, 'node_modules', '@openclaw', 'uirouter', 'dist', 'index.js'),
+    join(uiDest, 'node_modules', '@openclaw', 'libterminal', 'dist', 'browser.js'),
+  ]
+  const missing = []
+  for (const p of required) {
+    if (!(await fileExists(p))) missing.push(p)
+  }
+  if (missing.length > 0) {
+    throw new Error(
+      `[control-ui] missing @openclaw packages required by Control UI Vite build:\n${missing.map((p) => `  - ${p}`).join('\n')}`,
+    )
+  }
 }
 
 async function findExtractedRepoRoot(extractParent: string): Promise<string> {
@@ -311,6 +609,10 @@ async function downloadToFile(url: string, dest: string): Promise<void> {
       lastErr = e
       const msg = e instanceof Error ? e.message : String(e)
       console.warn(`  [warn] tarball download attempt ${i}/${attempts} failed: ${msg}`)
+      // Missing GitHub tags (npm republish suffixes) — do not burn retries.
+      if (/\b404\b|returned error:\s*404|HTTP 404/i.test(msg)) {
+        break
+      }
       if (
         backend === 'fetch' &&
         i === 1 &&
@@ -342,10 +644,6 @@ export async function downloadAndBuildOpenClawControlUiAt(
   openclawRoot: string,
   npmPackageVersion: string,
 ): Promise<void> {
-  const tag = gitTagForNpmVersion(npmPackageVersion)
-  const url = resolveTarballUrl(tag)
-  console.log(`  [control-ui] fetching ${tag} sources (${url.split('/').slice(0, 3).join('/')}/...)...`)
-
   const parentTmp = join(
     openclawRoot,
     '..',
@@ -357,7 +655,46 @@ export async function downloadAndBuildOpenClawControlUiAt(
   const extractDir = join(parentTmp, 'extracted')
 
   try {
-    await downloadToFile(url, tgzPath)
+    const urlOverride = resolveTarballUrlOverride()
+    if (urlOverride) {
+      console.log(
+        `  [control-ui] fetching sources for npm ${npmPackageVersion} (override URL)...`,
+      )
+      await downloadToFile(urlOverride, tgzPath)
+    } else {
+      const tags = gitTagCandidatesForNpmVersion(npmPackageVersion)
+      let downloaded = false
+      let lastErr: unknown
+      for (const tag of tags) {
+        const url = tarballUrlForTag(tag)
+        console.log(
+          `  [control-ui] fetching ${tag} sources (${url.split('/').slice(0, 3).join('/')}/...)...`,
+        )
+        try {
+          await downloadToFile(url, tgzPath)
+          if (tag !== gitTagForNpmVersion(npmPackageVersion)) {
+            console.log(
+              `  [control-ui] npm ${npmPackageVersion} → GitHub tag ${tag} (exact tag missing; used republish fallback)`,
+            )
+          } else {
+            console.log(`  [control-ui] using GitHub tag ${tag}`)
+          }
+          downloaded = true
+          break
+        } catch (e) {
+          lastErr = e
+          const msg = e instanceof Error ? e.message : String(e)
+          console.warn(`  [warn] tag ${tag} failed: ${msg.split('\n')[0]}`)
+        }
+      }
+      if (!downloaded) {
+        const last = lastErr instanceof Error ? lastErr.message : String(lastErr)
+        throw new Error(
+          `No GitHub source tarball for openclaw@${npmPackageVersion} (tried ${tags.join(', ')}). ${last}`,
+        )
+      }
+    }
+
     await mkdir(extractDir, { recursive: true })
     extractTarGzToDir(tgzPath, extractDir)
 
@@ -385,7 +722,35 @@ export async function downloadAndBuildOpenClawControlUiAt(
     await mkdir(scriptDestDir, { recursive: true })
     await cp(scriptSrc, scriptDest)
 
+    // Vite Control UI resolves monorepo tsconfig path aliases from the OpenClaw repo root.
+    for (const name of [
+      'tsconfig.json',
+      'tsconfig.core.json',
+      'tsconfig.core.projects.json',
+      'tsconfig.projects.json',
+      'tsconfig.extensions.json',
+      'tsconfig.extensions.projects.json',
+      'tsconfig.plugin-sdk.dts.json',
+    ]) {
+      const from = join(srcRoot, name)
+      if (await fileExists(from)) {
+        await cp(from, join(openclawRoot, name))
+      }
+    }
+
+    // UI sources import `../../../packages/<name>/src/...` — copy the full packages tree.
+    const srcPackagesAll = join(srcRoot, 'packages')
+    if (await fileExists(srcPackagesAll)) {
+      const destPackagesAll = join(openclawRoot, 'packages')
+      await rm(destPackagesAll, { recursive: true, force: true })
+      await cp(srcPackagesAll, destPackagesAll, { recursive: true })
+      console.log('  [control-ui] copied monorepo packages/ for Control UI source imports')
+    }
+
     await applyOpenClawUiLitDecoratorCompatPatches(uiDest)
+
+    // OpenClaw 2026.7+ ui/ depends on private workspace packages (@openclaw/media-core, …).
+    await materializeOpenClawUiWorkspacePackages(openclawRoot, srcRoot, uiDest)
 
     console.log('  [control-ui] npm install in ui/ (Vite + deps)...')
     execSync('npm install --no-audit --no-fund', {
@@ -394,8 +759,17 @@ export async function downloadAndBuildOpenClawControlUiAt(
       env: { ...process.env, NODE_ENV: '' },
     })
 
+    // Upstream ui/package.json omits some imports that the monorepo resolves via pnpm hoisting
+    // (e.g. `@lit/context`). Install them explicitly for standalone npm builds.
+    await ensureControlUiExtraNpmDeps(uiDest)
+
     console.log('  [control-ui] npm install OpenClaw root deps at openclaw root (for ../src/** resolution)...')
     await ensureOpenclawRootDepsForBundledSrc(openclawRoot, srcRoot)
+
+    // Vite aliases `@openclaw/uirouter` + `@openclaw/libterminal` to openclawRoot/node_modules.
+    // Must run AFTER root `npm install`, which otherwise deletes a prior hoist ("removed N packages").
+    await hoistOpenClawScopedModules(openclawRoot, uiDest)
+    await assertControlUiOpenClawPackages(uiDest)
 
     console.log('  [control-ui] vite build → dist/control-ui')
     execSync('npm run build', {
@@ -428,11 +802,24 @@ async function removeBundledUiSources(openclawDir: string): Promise<void> {
   const uiDest = join(openclawDir, 'ui')
   const sharedDest = join(openclawDir, 'src')
   const appsDest = join(openclawDir, 'apps')
+  const packagesDest = join(openclawDir, 'packages')
   const scriptDest = join(openclawDir, 'scripts', 'ui.js')
   const scriptDestDir = join(openclawDir, 'scripts')
   await rm(uiDest, { recursive: true, force: true })
   await rm(sharedDest, { recursive: true, force: true })
   await rm(appsDest, { recursive: true, force: true })
+  await rm(packagesDest, { recursive: true, force: true })
+  for (const name of [
+    'tsconfig.json',
+    'tsconfig.core.json',
+    'tsconfig.core.projects.json',
+    'tsconfig.projects.json',
+    'tsconfig.extensions.json',
+    'tsconfig.extensions.projects.json',
+    'tsconfig.plugin-sdk.dts.json',
+  ]) {
+    await rm(join(openclawDir, name), { force: true })
+  }
   await rm(scriptDest, { force: true })
   try {
     const rest = await readdir(scriptDestDir)

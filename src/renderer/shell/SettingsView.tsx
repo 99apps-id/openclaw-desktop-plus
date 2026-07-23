@@ -18,12 +18,19 @@ import {
 } from '../i18n'
 import { normalizeToShellLocale } from '../../shared/shell-locale'
 import { ModelSettingsSection } from './ModelSettingsSection'
+import { GatewayRemoteSection } from './GatewayRemoteSection'
+import { FailoverSettingsSection } from './FailoverSettingsSection'
+import { VisionModelSettingsSection } from './VisionModelSettingsSection'
 
 export interface SettingsViewProps {
   /** Back navigation when embedded in parent layout */
   onBack?: () => void
   /** Open Feishu pairing / allowlist panel */
   onOpenFeishuSettings?: () => void
+  /** Open dedicated Models panel */
+  onOpenModels?: () => void
+  /** Open Channels manager */
+  onOpenChannels?: () => void
 }
 
 function defaultNavigateBack() {
@@ -102,7 +109,12 @@ function themeLabelKey(value: ShellTheme): `shell.settings.${'system' | 'light' 
   return `shell.settings.${value}`
 }
 
-export function SettingsView({ onBack, onOpenFeishuSettings }: SettingsViewProps = {}) {
+export function SettingsView({
+  onBack,
+  onOpenFeishuSettings,
+  onOpenModels,
+  onOpenChannels,
+}: SettingsViewProps = {}) {
   const { t, i18n } = useTranslation()
   const handleBack = onBack ?? defaultNavigateBack
   const [config, setConfig] = useState<ShellConfig | null>(null)
@@ -283,7 +295,31 @@ export function SettingsView({ onBack, onOpenFeishuSettings }: SettingsViewProps
           </div>
         </section>
 
+        {(onOpenModels || onOpenChannels) && (
+          <section className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
+            <p className="text-sm font-medium">{t('shell.settings.shortcutsSection')}</p>
+            <div className="flex flex-wrap gap-2">
+              {onOpenModels && (
+                <Button type="button" variant="secondary" onClick={onOpenModels}>
+                  {t('shell.models.title')}
+                </Button>
+              )}
+              {onOpenChannels && (
+                <Button type="button" variant="secondary" onClick={onOpenChannels}>
+                  {t('shell.channels.title')}
+                </Button>
+              )}
+            </div>
+          </section>
+        )}
+
+        <GatewayRemoteSection />
+
         <ModelSettingsSection />
+
+        <VisionModelSettingsSection />
+
+        <FailoverSettingsSection />
 
         {onOpenFeishuSettings && (
           <section className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4" aria-label={t('shell.settings.feishuSection')}>

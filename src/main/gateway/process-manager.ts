@@ -5,6 +5,7 @@ import net from 'node:net'
 import path from 'node:path'
 import type { GatewayStatus, GatewayStatusValue, OpenClawConfig } from '../../shared/types.js'
 import { DEFAULT_GATEWAY_PORT } from '../../shared/constants.js'
+import { buildRemoteControlUiUrl, isGatewayRemoteMode } from '../../shared/gateway-remote.js'
 import { getBundledNodePath, getBundledOpenClawDir, getBundledOpenClawPath, getUserDataDir } from '../utils/paths.js'
 import { OPENCLAW_CONFIG_FILE } from '../../shared/constants.js'
 import { logInfo, logWarn } from '../utils/logger.js'
@@ -205,6 +206,9 @@ export class GatewayProcessManager {
   private startedAt = 0
   private currentPort = DEFAULT_GATEWAY_PORT
   private statusValue: GatewayStatusValue = 'stopped'
+  /** When true, desktop connects to gateway.remote instead of spawning a local child. */
+  private remoteActive = false
+  private remoteHttpOrigin: string | null = null
   private lastLaunchOptions: GatewayLaunchOptions = {}
   private healthCheckTimer: NodeJS.Timeout | null = null
   private healthCheckInFlight = false
@@ -248,6 +252,18 @@ export class GatewayProcessManager {
   }
 
   getStatus(): GatewayStatus {
+    if (this.remoteActive && this.remoteHttpOrigin) {
+      const uptime = this.startedAt > 0 ? Date.now() - this.startedAt : 0
+      return {
+        running: this.statusValue === 'running',
+        port: this.currentPort,
+        pid: null,
+        uptime,
+        status: this.statusValue,
+        mode: 'remote',
+        controlUrl: this.remoteHttpOrigin,
+      }
+    }
     const childAlive = Boolean(this.child && this.child.exitCode === null && this.child.signalCode === null)
     const running = this.statusValue === 'running' || childAlive
     const uptime = running && this.startedAt > 0 ? Date.now() - this.startedAt : 0
@@ -258,7 +274,62 @@ export class GatewayProcessManager {
       pid: this.child?.pid ?? null,
       uptime,
       status: this.statusValue,
+      mode: 'local',
     }
+  }
+
+  /**
+   * Attach to a remote gateway (no local child). Stops any local process first.
+   * Expects `gateway.mode === "remote"` and a valid `gateway.remote.url`.
+   */
+  async applyRemoteFromConfig(config?: OpenClawConfig | null): Promise<GatewayStatus> {
+    return this.enqueueLifecycle(async () => {
+      const cfg = config ?? readOpenClawConfig()
+      const gw = cfg?.gateway
+      if (!isGatewayRemoteMode(gw)) {
+        return this.clearRemoteModeInternal()
+      }
+      const built = buildRemoteControlUiUrl(gw?.remote)
+      if (!built) {
+        this.remoteActive = false
+        this.remoteHttpOrigin = null
+        this.statusValue = 'error'
+        this.notifyStatusChange()
+        throw new Error('Remote gateway requires gateway.remote.url (ws:// or wss://)')
+      }
+
+      if (this.child) {
+        await this.stopInternal(3000)
+      }
+
+      this.remoteActive = true
+      this.remoteHttpOrigin = built.httpOrigin
+      this.currentPort = built.port
+      this.statusValue = 'running'
+      this.startedAt = Date.now()
+      logInfo(`[gateway] Remote mode → Control UI ${built.httpOrigin} (port ${built.port})`)
+      this.notifyStatusChange()
+      return this.getStatus()
+    })
+  }
+
+  /** Leave remote mode (does not auto-start local gateway). */
+  async clearRemoteMode(): Promise<GatewayStatus> {
+    return this.enqueueLifecycle(() => Promise.resolve(this.clearRemoteModeInternal()))
+  }
+
+  private clearRemoteModeInternal(): GatewayStatus {
+    if (!this.remoteActive && !this.remoteHttpOrigin) {
+      return this.getStatus()
+    }
+    this.remoteActive = false
+    this.remoteHttpOrigin = null
+    if (!this.child) {
+      this.statusValue = 'stopped'
+      this.startedAt = 0
+    }
+    this.notifyStatusChange()
+    return this.getStatus()
   }
 
   private enqueueLifecycle(fn: () => Promise<GatewayStatus>): Promise<GatewayStatus> {
@@ -280,6 +351,10 @@ export class GatewayProcessManager {
   }
 
   private async startInternal(options: GatewayLaunchOptions = {}): Promise<GatewayStatus> {
+    if (this.remoteActive) {
+      this.remoteActive = false
+      this.remoteHttpOrigin = null
+    }
     // `child.killed` is not a reliable signal for liveness (see smoke tests). Treat the
     // child as alive based on real process state.
     const childAlive = Boolean(this.child && this.child.exitCode === null && this.child.signalCode === null)
@@ -402,6 +477,10 @@ export class GatewayProcessManager {
     this.healthCheckInFlight = false
     this.consecutiveHealthCheckFailures = 0
     this.recentRestarts = []
+
+    if (this.remoteActive) {
+      return this.clearRemoteModeInternal()
+    }
 
     if (!this.child) {
       this.statusValue = 'stopped'

@@ -1,236 +1,146 @@
 <p align="center">
-  <img src="resources/apple-touch-icon.png" alt="OpenClaw Desktop" width="128" height="128" />
+  <img src="resources/apple-touch-icon.png" alt="OpenClaw Desktop Plus" width="128" height="128" />
 </p>
 
-<h1 align="center">OpenClaw Desktop</h1>
-<p align="center">龙虾智能体官方中文桌面版一键安装部署EXE程序</p>
+<h1 align="center">OpenClaw Desktop Plus</h1>
 
 <p align="center">
-  <strong>Official-style Windows installer &amp; desktop app for <a href="https://github.com/openclaw/openclaw">OpenClaw</a>.</strong><br />
-  One-click install, bundled runtime, guided setup — run OpenClaw AI agents on Windows without touching a terminal.
+  <strong>Windows installer and desktop shell for <a href="https://github.com/openclaw/openclaw">OpenClaw</a>.</strong><br />
+  One-click setup, bundled runtime, guided wizard — run OpenClaw agents on Windows without a terminal.
 </p>
 
 <p align="center">
-  <a href="https://github.com/agentkernel/openclaw-desktop/releases/latest">
-    <img src="https://img.shields.io/github/v/release/agentkernel/openclaw-desktop?style=flat-square&color=2563eb&label=latest+release" alt="Latest release" />
+  <a href="https://github.com/99apps-id/openclaw-desktop-plus/releases/latest">
+    <img src="https://img.shields.io/github/v/release/99apps-id/openclaw-desktop-plus?style=flat-square&color=2563eb&label=latest+release" alt="Latest release" />
   </a>
-  <a href="https://github.com/agentkernel/openclaw-desktop/actions/workflows/ci.yml">
-    <img src="https://img.shields.io/github/actions/workflow/status/agentkernel/openclaw-desktop/ci.yml?style=flat-square&label=ci" alt="CI" />
+  <a href="https://github.com/99apps-id/openclaw-desktop-plus/actions/workflows/ci.yml">
+    <img src="https://img.shields.io/github/actions/workflow/status/99apps-id/openclaw-desktop-plus/ci.yml?style=flat-square&label=ci" alt="CI" />
   </a>
-  <a href="https://github.com/agentkernel/openclaw-desktop/releases">
-    <img src="https://img.shields.io/github/downloads/agentkernel/openclaw-desktop/total?style=flat-square&color=16a34a&label=downloads" alt="Downloads" />
+  <a href="https://github.com/99apps-id/openclaw-desktop-plus/releases">
+    <img src="https://img.shields.io/github/downloads/99apps-id/openclaw-desktop-plus/total?style=flat-square&color=16a34a&label=downloads" alt="Downloads" />
   </a>
   <a href="LICENSE">
-    <img src="https://img.shields.io/github/license/agentkernel/openclaw-desktop?style=flat-square" alt="License" />
+    <img src="https://img.shields.io/github/license/99apps-id/openclaw-desktop-plus?style=flat-square" alt="License" />
   </a>
 </p>
 
 <p align="center">
-  <img src="resources/demo.gif" alt="OpenClaw Desktop Demo running on Windows" width="720" />
-</p>
-
-<p align="center">
-  ⭐ &nbsp;If this project helps you, <strong>please give it a star</strong> — it takes 2 seconds and means a lot!&nbsp; ⭐
+  <img src="resources/demo.gif" alt="OpenClaw Desktop Plus demo on Windows" width="720" />
 </p>
 
 ---
 
-**Language:** English · [简体中文](./README.zh-CN.md)
+## Documentation
+
+| Doc | Purpose |
+| --- | --- |
+| **[README](README.md)** (this file) | Product overview, install, FAQ |
+| **[CHANGELOG](CHANGELOG.md)** | Release history |
+| **[CONTRIBUTING](CONTRIBUTING.md)** | How to contribute |
+| **[SECURITY](SECURITY.md)** | Vulnerability reporting |
+| **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)** | Local dev setup and project layout |
+| **[docs/PACKAGING.md](docs/PACKAGING.md)** | Building the Windows installer |
+| **[docs/INSTALLER_TROUBLESHOOTING.md](docs/INSTALLER_TROUBLESHOOTING.md)** | Black screen / mixed-bundle hardening |
+
+Repository: [github.com/99apps-id/openclaw-desktop-plus](https://github.com/99apps-id/openclaw-desktop-plus)
 
 ---
 
 ## What is this?
 
-**OpenClaw Desktop** packages the OpenClaw runtime into a standard Windows install experience. Download one `.exe`, finish a setup wizard, and run OpenClaw from a native desktop shell — no manual wiring, no terminal required.
+**OpenClaw Desktop Plus** packages the OpenClaw runtime into a standard Windows install experience. Download one `.exe`, finish the setup wizard, and run OpenClaw from a native desktop shell — no manual wiring required.
 
-If you've been searching for *how to install OpenClaw on Windows*, *how to run OpenClaw locally*, or an **OpenClaw Windows installer** with a GUI, this is it.
+Community-maintained distribution for the OpenClaw ecosystem (not affiliated with the core OpenClaw project).
 
-## Quick Start
+## Quick start
 
-1. Download the latest installer from [Releases](https://github.com/agentkernel/openclaw-desktop/releases/latest)
-2. Run the Windows setup (filename follows `package.json`, e.g. `OpenClaw-Setup-0.7.0+openclaw.2026.4.2.exe`)
-3. Finish the setup wizard (provider → channel → gateway)
-4. Launch from Start Menu or Desktop shortcut
+1. Download the latest installer from [Releases](https://github.com/99apps-id/openclaw-desktop-plus/releases/latest)
+2. Run setup (asset name follows `package.json`, e.g. `OpenClaw-Desktop-Plus-Setup-0.8.0+openclaw.2026.7.1-2.exe`)
+3. Complete the wizard (provider → channel → gateway)
+4. Launch from Start Menu or the desktop shortcut
 
-**System:** Windows 10/11 x64 · ~350 MB free space · Internet for API calls
+**Requirements:** Windows 10/11 x64 · ~350 MB free space · Internet for API calls
 
-## OpenClaw Desktop v0.7.0
+## Current release (v0.8.0)
 
-- **Shell version:** `0.7.0+openclaw.2026.4.2` (semver + bundled OpenClaw pin in build metadata).
-- **Git release tag:** `v0.7.0+openclaw.2026.4.2` — same as `package.json` `version` with a `v` prefix (OpenClaw pin visible in the tag).
-- **Bundled OpenClaw (npm):** **2026.4.2** — same runtime as `npm install openclaw@2026.4.2` (current npm `latest`); pinned in [`package.json`](package.json) as `openclawBundleVersion`.
-- **Desktop highlights (recent train):** **v0.7.0** ships shell improvements and bundle finalization while keeping OpenClaw **2026.4.2** (see [CHANGELOG **0.7.0**](CHANGELOG.md)). **v0.6.6** bumped the bundled runtime to **2026.4.2** ([**0.6.6**](CHANGELOG.md)). **v0.6.4** completed **embedded Control UI / HTTP 500** hardening (**Origin** on loopback requests, **`allowedOrigins: ["*"]`** when unset on loopback, wizard **loopback** parity, **amazon-bedrock** stripped from the installer). **v0.6.3** merged iframe auth flags on read/write + write retries ([**0.6.3**](CHANGELOG.md)). **v0.6.2** documents **Git tags with bundled OpenClaw** ([**0.6.2**](CHANGELOG.md)). Feishu `registerFull` guard; MiniMax **M2.7-only**; Control UI from GitHub tag sources for Electron.
+| | |
+| --- | --- |
+| **Shell** | `0.8.0+openclaw.2026.7.1-2` |
+| **Git tag** | `v0.8.0+openclaw.2026.7.1-2` |
+| **Bundled OpenClaw** | **2026.7.1-2** (`openclawBundleVersion` in `package.json`) |
+| **Bundled Node.js** | **22.23.1** (upstream `engines`: Node ≥ 22.22.3 on 22.x) |
 
-### Upstream OpenClaw 2026.4.2 (summary)
-
-Full notes: [openclaw/openclaw **v2026.4.2**](https://github.com/openclaw/openclaw/releases/tag/v2026.4.2) · [npm release digest](https://newreleases.io/project/npm/openclaw/release/2026.4.2).
-
-**Breaking (this bump)**
-
-- **Plugins / xAI:** Move **`x_search`** settings from legacy core **`tools.web.x_search.*`** to plugin-owned **`plugins.entries.xai.config.xSearch.*`**; standardize auth on **`plugins.entries.xai.config.webSearch.apiKey`** / **`XAI_API_KEY`**. Migrate with **`openclaw doctor --fix`** ([#59674](https://github.com/openclaw/openclaw/pull/59674)).
-- **Plugins / web fetch:** Move Firecrawl **`web_fetch`** config from **`tools.web.fetch.firecrawl.*`** to **`plugins.entries.firecrawl.config.webFetch.*`**. Migrate with **`openclaw doctor --fix`** ([#59465](https://github.com/openclaw/openclaw/pull/59465)).
-
-**Notable for desktop / loopback users (fixes in this train)**
-
-- **Gateway / exec loopback:** Restores legacy-role fallback for empty paired-device token maps so local exec and node clients avoid **pairing-required** failures after **2026.3.31** ([#59092](https://github.com/openclaw/openclaw/issues/59092)).
-- **Agents / subagents:** Admin-only subagent gateway calls pin to **`operator.admin`** so **`sessions_spawn`** no longer fails loopback scope-upgrade pairing ([#59555](https://github.com/openclaw/openclaw/issues/59555)).
-
-**Still in effect from earlier pins (e.g. 2026.3.31)**
-
-- **Nodes / exec:** No duplicated `nodes.run` shell wrapper; use **`exec host=node`** and **`nodes invoke`** where appropriate.
-- **Plugin SDK:** Prefer **`openclaw/plugin-sdk/*`**; legacy shims are deprecated.
-- **Feishu / hooks:** `hooks.mappings[].channel` accepts runtime plugin ids such as **`feishu`** ([#56226](https://github.com/openclaw/openclaw/issues/56226)).
-- **Qwen / Doctor / channels:** See [v2026.3.31](https://github.com/openclaw/openclaw/releases/tag/v2026.3.31) and [v2026.3.28](https://github.com/openclaw/openclaw/releases/tag/v2026.3.28) for earlier breaking and large trains.
-
-**Tip (MiniMax 401):** MiniMax Anthropic-compatible endpoints expect **`x-api-key`**, not Bearer. This shell sets `authHeader: false` for MiniMax and migrates existing configs on load. Other third-party `anthropic-messages` hosts may still need `authHeader: true` where documented.
-
-Older desktop releases are listed in [CHANGELOG.md](CHANGELOG.md).
-
-## Compatibility with upstream OpenClaw (bundled `2026.4.2`)
-
-Each release **pins** the bundled OpenClaw npm version in root [`package.json`](package.json) (`openclawBundleVersion`). `pnpm run download-openclaw` installs that exact version (unless you override with a CLI arg or `OPENCLAW_DESKTOP_BUNDLE_VERSION`). For local packaging, run `download-openclaw` before `prepare-bundle`. The committed [`resources/bundle-manifest.json`](resources/bundle-manifest.json) is informational only — **the bundled version is whatever `prepare-bundle` writes to `bundledOpenClawVersion`.**
-
-- **Runtime:** Bundled portable Node.js **22.16.0** (`pnpm run download-node`), matching upstream `openclaw.mjs` / `engines` (**Node ≥ 22.16**).
-- **State & config:** Same as upstream: `%USERPROFILE%\.openclaw`, main config `openclaw.json`. Use **`OPENCLAW_*`** env vars (`CLAWDBOT_*` / `MOLTBOT_*`, `.moltbot`, etc. were removed upstream).
-- **Control UI:** The npm package does not ship `dist/control-ui/`; we fetch GitHub tag **`v<version>`** sources (`ui/` plus repo-root `src/`, etc.) and run Vite. CI builds static assets on Linux and merges them into the Windows installer.
-- **Embedded console auth:** For **local** gateways (not `remote`), the shell auto-maintains `gateway.controlUi.allowInsecureAuth` and `dangerouslyDisableDeviceAuth` in `openclaw.json` so OpenClaw **2026.3.x** Control UI works inside the Electron iframe (see [CHANGELOG 0.6.1](CHANGELOG.md)). If you switch to remote gateway or hand-edit these keys, follow upstream docs.
-- **Bundled plugin list:** Upstream ships built-in channel/provider plugins under **`dist/extensions/*`**; the desktop shell scans that path and still falls back to legacy top-level `extensions/`.
-- **Breaking changes:** Plugin SDK (`openclaw/plugin-sdk/*`), browser/install behavior, and other breaking items are covered in [upstream OpenClaw releases](https://github.com/openclaw/openclaw/releases) and [upstream docs](https://docs.openclaw.ai/) for the version you ship. Installer-only users usually need no action; **custom/third-party plugin** authors should follow upstream migration guides.
-
-*Same section in Chinese: [README.zh-CN.md](./README.zh-CN.md).*
+Highlights: Models / Channels panels, WhatsApp multi-account, Control UI reload, doctor / skills tooling. Full notes: [CHANGELOG 0.8.0](CHANGELOG.md) · upstream [v2026.7.1](https://github.com/openclaw/openclaw/releases/tag/v2026.7.1).
 
 ## Features
 
 | | |
-|---|---|
-| 🔽 **One-click installer** | Native Windows `.exe` installer — no `npm install` or system-wide Node.js needed |
-| ⚡ **Bundled runtime** | Ships with portable Node.js + OpenClaw so first launch is instant |
-| 🧙 **Guided setup wizard** | Step-by-step configuration for model provider, channel, and gateway |
-| 🔄 **In-app updates** | Built-in updater via GitHub Releases; rollback to any previous version |
-| 🪟 **Native Windows shell** | Start Menu, Desktop shortcut, system tray, and auto-start support |
-| 🌐 **50+ providers** | OpenAI, Claude, Gemini, DeepSeek, Kuae, and more |
-| 💬 **Multi-channel** | Telegram, Discord, Slack, WhatsApp, Feishu, and more |
-| 🌍 **Multi-language UI** | English, 简体中文, 繁體中文, 日本語, 한국어, Español, Français |
-| 🔐 **Feishu pairing & allowlist** | Approve DM users, manage senders, add `open_id` — all inside the app |
+| --- | --- |
+| One-click installer | Native Windows `.exe` — no system-wide Node.js |
+| Bundled runtime | Portable Node.js + OpenClaw |
+| Setup wizard | Provider, channel, and gateway configuration |
+| In-app updates | GitHub Releases via electron-updater |
+| Native shell | Tray, shortcuts, auto-start |
+| Remote gateway | Attach to VPS / Tailscale / SSH-tunneled gateway (Settings) |
+| Providers & channels | 50+ providers (OpenRouter API key or OAuth, …); Telegram, Discord, WhatsApp, Feishu, and more |
+| UI languages | English, Français, 日本語, 한국어, Español |
 
-## Ecosystem
+## Compatibility notes
 
-```
-         OpenClaw
-             |
-    ┌────────┴────────┐
-    │                 │
-  Desktop           GUI
-    │            Plugins
-Installer          ...
-```
-
-OpenClaw Desktop is a **community-maintained Windows distribution** for the OpenClaw ecosystem. Part of the OpenClaw ecosystem — not affiliated with the core project.
-
-## Download
-
-| | |
-|---|---|
-| **Release tag** | `v0.7.0+openclaw.2026.4.2` (equals `v` + `package.json` `version`) |
-| **Installer** | `OpenClaw-Setup-0.7.0+openclaw.2026.4.2.exe` (see [Releases](https://github.com/agentkernel/openclaw-desktop/releases/latest) for exact asset) |
-| **Platform** | Windows 10/11 x64 |
-| **Includes** | Electron shell, portable Node.js, bundled OpenClaw |
-| **Extras** | SHA-256 checksum, `latest.yml` for in-app updates |
-
-**→ [github.com/agentkernel/openclaw-desktop/releases/latest](https://github.com/agentkernel/openclaw-desktop/releases/latest)**
+- **Pin:** Bundled OpenClaw version is `openclawBundleVersion` in root `package.json`. Run `pnpm run download-openclaw` before packaging.
+- **State:** `%USERPROFILE%\.openclaw` / `openclaw.json` (same as upstream).
+- **Desktop shell config:** `%APPDATA%\OpenClaw Desktop Plus\config.json`
+- **Control UI:** Built from GitHub tag sources when npm packages omit `dist/control-ui/` (republish tags like `2026.7.1-2` fall back to `v2026.7.1`).
+- **Embedded auth:** For local gateways the shell maintains `gateway.controlUi.allowInsecureAuth` and `dangerouslyDisableDeviceAuth` so Control UI works in the Electron iframe.
 
 ## Screenshots
 
-| Installer | Setup Wizard | Dashboard |
+| Installer | Setup wizard | Dashboard |
 | --- | --- | --- |
-| <img src="resources/screenshot-installer-user-scope.png" alt="Installer" width="260" /> | <img src="resources/screenshot-setup-wizard.png" alt="Setup Wizard" width="260" /> | <img src="resources/screenshot-gateway-dashboard.png" alt="Dashboard" width="260" /> |
-
-## Feishu Settings & Pairing
-
-If you use Feishu with pairing mode, Desktop keeps the whole flow inside the app:
-
-1. Configure Feishu credentials in the wizard or in **Settings**
-2. Keep DM mode on `pairing` to approve users before they can chat
-3. Ask the requester to DM the bot in Feishu
-4. Open **Feishu Settings** to review pending requests, approve senders, edit the allowlist, or add an `open_id` manually
-
-If the pending list is empty but you have a pairing code, use the code-based approval path on the same screen — Desktop will call the bundled OpenClaw runtime as a fallback.
+| <img src="resources/screenshot-installer-user-scope.png" alt="Installer" width="260" /> | <img src="resources/screenshot-setup-wizard.png" alt="Setup wizard" width="260" /> | <img src="resources/screenshot-gateway-dashboard.png" alt="Dashboard" width="260" /> |
 
 ## FAQ
 
 <details>
-<summary><strong>How do I install OpenClaw on Windows?</strong></summary>
+<summary><strong>How do I install on Windows?</strong></summary>
 
-Download the latest `OpenClaw-Setup-*.exe` from the [latest release](https://github.com/agentkernel/openclaw-desktop/releases/latest) and run it. That's it — no `npm`, no system-wide Node.js, no terminal commands needed.
+Download `OpenClaw-Desktop-Plus-Setup-*.exe` from the [latest release](https://github.com/99apps-id/openclaw-desktop-plus/releases/latest) and run it.
 </details>
 
 <details>
 <summary><strong>Do I need Node.js installed globally?</strong></summary>
 
-No. The installer ships with a portable Node.js runtime.
+No. The installer ships a portable Node.js runtime.
 </details>
 
 <details>
 <summary><strong>Where is user data stored?</strong></summary>
 
-- OpenClaw config: `%USERPROFILE%\.openclaw\openclaw.json`
-- Desktop config: `%APPDATA%\OpenClaw Desktop\config.json`
-- Logs: `%USERPROFILE%\.openclaw\`
-- Backups: `%USERPROFILE%\.openclaw\backups\`
+- OpenClaw: `%USERPROFILE%\.openclaw\`
+- Desktop shell: `%APPDATA%\OpenClaw Desktop Plus\config.json`
 
-Uninstalling the app does not remove these by default.
+Uninstall does not remove these by default.
 </details>
 
 <details>
 <summary><strong>How do updates work?</strong></summary>
 
-Desktop checks GitHub Releases and can download updates through the built-in updater. You can also download any older asset manually for rollback.
-</details>
-
-<details>
-<summary><strong>Do I need to delete `%USERPROFILE%\.openclaw` or <code>openclaw.json</code> before upgrading?</strong></summary>
-
-Usually no. After installing a newer build, launch the app once; it migrates `openclaw.json` on read and merges embedded Control UI flags on every save. Delete or reset only if the file is corrupt or you want a full clean slate (back up first).
-</details>
-
-<details>
-<summary><strong>What does the Kuae HTTPS proxy fix do?</strong></summary>
-
-When the bundled OpenClaw gateway inherits `HTTP(S)_PROXY`, some local proxies break TLS to Kuae's Coding Plan endpoint (`coding-plan-endpoint.kuaecloud.net`). Desktop merges `NO_PROXY` for both `.kuaecloud.net` domains so Kuae traffic goes direct while other providers still use your proxy. Set `OPENCLAW_SKIP_KUAE_NO_PROXY=1` to disable.
+The app checks GitHub Releases and can install updates in-app. You can also download older assets for rollback.
 </details>
 
 ## Development
 
 ```bash
-git clone https://github.com/agentkernel/openclaw-desktop.git
-cd openclaw-desktop
+git clone https://github.com/99apps-id/openclaw-desktop-plus.git
+cd openclaw-desktop-plus
 pnpm install
 pnpm dev
 ```
 
-**Prerequisites:** Node.js `>= 22.16.0` · `pnpm` · Windows 10/11
+See **[docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)** and **[docs/PACKAGING.md](docs/PACKAGING.md)**.
 
-**Common commands:**
-```bash
-pnpm type-check   # Type check
-pnpm build       # Build
-pnpm run package:prepare-deps   # download-node + download-openclaw (before installer)
-pnpm run prepare-bundle
-pnpm run package:win   # Output: dist/OpenClaw-Setup-<version>.exe
-```
-
-**Bundled OpenClaw:** Pinned in `package.json` (`openclawBundleVersion`). After `prepare-bundle`, see `bundledOpenClawVersion` in [`resources/bundle-manifest.json`](resources/bundle-manifest.json) (currently **2026.4.2** for desktop **v0.7.0**). Local checks: `pnpm run check-openclaw-versions` (omit `OPENCLAW_SKIP_NPM_LATEST_CHECK` to also compare against npm `latest`).
-
-**Related docs:** [CHANGELOG.md](CHANGELOG.md) · [CONTRIBUTING.md](CONTRIBUTING.md)
+**Prerequisites:** Node.js `>= 22.22.3` · `pnpm` · Windows 10/11
 
 ## License
 
 [GPL-3.0](LICENSE)
-
----
-
-⭐ Star History · Contributors · Community
-
-<!-- SEO: OpenClaw Desktop, OpenClaw Windows, OpenClaw installer, OpenClaw Windows installer, OpenClaw desktop app,
-OpenClaw setup wizard, OpenClaw GUI, OpenClaw app for Windows, install OpenClaw on Windows, run OpenClaw locally,
-OpenClaw 桌面版, OpenClaw Windows 安装器, OpenClaw デスクトップ, OpenClaw 데스크톱, how to install openclaw, openclaw setup -->

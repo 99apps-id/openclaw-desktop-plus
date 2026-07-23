@@ -5,7 +5,7 @@ import { ShellLayout } from './ShellLayout'
 import type { AppVersionInfo } from '../../shared/types'
 import { formatMainVersion } from '@/utils/version-format'
 
-const PROJECT_URL = 'https://github.com/agentkernel/openclaw-desktop'
+const PROJECT_URL = 'https://github.com/99apps-id/openclaw-desktop-plus'
 
 export interface AboutViewProps {
   /** Back navigation when embedded in parent layout */

@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: '要发布的 Git 标签（须已存在），须与 package.json 的 version 一致并加前缀 v，例如 v0.7.0+openclaw.2026.4.2。必填：工作流会检出该标签再构建，勿留空（留空会误用当前分支导致安装包混拼 / Control UI 黑屏）。'
+        description: 'Git tag to publish (must already exist). Must equal v + package.json version, e.g. v0.8.0+openclaw.2026.7.1-2. Required: the workflow checks out this tag before building. Leaving it empty uses the current branch and can mix shell / OpenClaw / Control UI (black screen).'
         required: true
         type: string
 
@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  NODE_VERSION_CI: '22.16.0'
+  NODE_VERSION_CI: '22.23.1'
   # check-openclaw-versions: validate pin vs bundle-manifest only (no npm registry query / latest warn).
   OPENCLAW_SKIP_NPM_LATEST_CHECK: '1'
   # workflow_dispatch: must checkout the release tag, not the branch that triggered the run (avoids shell/OpenClaw pin vs artifact mismatch → Control UI black screen).
@@ -40,7 +40,7 @@ jobs:
         if: github.event_name == 'workflow_dispatch'
         run: |
           if [ -z "${{ github.event.inputs.tag }}" ]; then
-            echo "::error::手动发布时必须在输入框填写 tag（与 Git 标签一致，例如 v0.7.0+openclaw.2026.4.2）。否则会按当前分支打包，极易与 Release 标签错配并导致安装包内 OpenClaw / Control UI 混拼。"
+            echo "::error::Manual release requires a tag input matching the Git tag (e.g. v0.8.0+openclaw.2026.7.1-2). Otherwise the workflow packages the current branch and can mix OpenClaw / Control UI with the Release tag."
             exit 1
           fi
 
@@ -158,7 +158,7 @@ jobs:
       contents: read
     outputs:
       artifact-id: ${{ steps.upload-installer.outputs.artifact-id }}
-    # SignPath 模式：vars.USE_SIGNPATH=true 时构建未签名包；否则用 CSC_LINK 签名
+    # SignPath mode: when vars.USE_SIGNPATH=true, build unsigned then SignPath; otherwise CSC_LINK
     env:
       CSC_LINK: ${{ vars.USE_SIGNPATH == 'true' && '' || secrets.CSC_LINK }}
       CSC_KEY_PASSWORD: ${{ vars.USE_SIGNPATH == 'true' && '' || secrets.CSC_KEY_PASSWORD }}
@@ -292,7 +292,7 @@ jobs:
     name: Sign with SignPath Foundation
     needs:
       - package_win
-    # 设置仓库变量 USE_SIGNPATH=true 时启用；否则使用 CSC_LINK 开发者签名
+    # Enable when repo variable USE_SIGNPATH=true; otherwise use CSC_LINK developer signing
     if: vars.USE_SIGNPATH == 'true'
     runs-on: ubuntu-latest
     permissions:

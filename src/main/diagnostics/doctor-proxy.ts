@@ -22,8 +22,10 @@ function withNodeInPath(env: NodeJS.ProcessEnv, nodePath: string): NodeJS.Proces
   }
 }
 
-/** Run `openclaw doctor --non-interactive`; raw stdout/stderr */
-async function runDoctorCli(): Promise<{ exitCode: number; stdout: string; stderr: string }> {
+/** Run `openclaw doctor --non-interactive` (+ optional `--fix`); raw stdout/stderr */
+async function runDoctorCli(opts?: {
+  fix?: boolean
+}): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   const nodePath = getBundledNodePath()
   const openclawPath = getBundledOpenClawPath()
 
@@ -35,6 +37,7 @@ async function runDoctorCli(): Promise<{ exitCode: number; stdout: string; stder
   }
 
   const args = [openclawPath, 'doctor', '--non-interactive']
+  if (opts?.fix) args.push('--fix')
   const env = {
     ...withNodeInPath(process.env, nodePath),
     OPENCLAW_STATE_DIR: getUserDataDir(),
@@ -214,6 +217,8 @@ export async function runDiagnostics(deps: {
   readOpenClawConfig: () => unknown
   readShellConfig: () => { lastGatewayPort?: number }
   gatewayStatus: () => { running: boolean; status: string }
+  /** When true, run `openclaw doctor --fix` (migrates known config issues). */
+  fix?: boolean
 }): Promise<DiagnosticReport> {
   const runAt = new Date().toISOString()
   const items: DiagnosticItem[] = []
@@ -264,7 +269,18 @@ export async function runDiagnostics(deps: {
   // 2. Doctor CLI when bundle OK
   if (prestart.bundleCheck.ok) {
     try {
-      const { exitCode, stdout, stderr } = await runDoctorCli()
+      const { exitCode, stdout, stderr } = await runDoctorCli({ fix: deps.fix === true })
+      if (deps.fix) {
+        items.push({
+          id: 'cli-doctor-fix',
+          level: exitCode === 0 ? 'pass' : 'warning',
+          message:
+            exitCode === 0
+              ? 'OpenClaw doctor --fix completed'
+              : `Doctor --fix exited with code ${exitCode}`,
+          source: 'cli',
+        })
+      }
       if (exitCode === 0) {
         items.push({
           id: 'cli-doctor',

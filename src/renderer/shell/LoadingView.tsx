@@ -59,7 +59,7 @@ export function LoadingView({
             <span className="text-2xl font-bold text-primary-foreground tracking-tight">OC</span>
           )}
         </div>
-        <h1 className="text-xl font-semibold tracking-tight">OpenClaw Desktop</h1>
+        <h1 className="text-xl font-semibold tracking-tight">OpenClaw Desktop Plus</h1>
       </div>
 
       {!timedOut && (

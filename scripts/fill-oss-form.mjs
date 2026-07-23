@@ -20,18 +20,18 @@ const USER_FULL_NAME = process.env.OSS_USER_FULL_NAME || '[Your full name]';
 const USER_EMAIL = process.env.OSS_USER_EMAIL || '[Your email]';
 
 const FORM_VALUES = {
-  D2: 'OpenClaw Desktop',           // Public product name
-  D4: 'openclaw-desktop',           // Handle / artifact slug
+  D2: 'OpenClaw Desktop Plus',           // Public product name
+  D4: 'openclaw-desktop-plus',      // Handle / artifact slug
   D6: 'Program',                    // Desktop installer
   D8: 'GPL-3.0 License - https://www.gnu.org/licenses/gpl-3.0',
-  D10: 'https://github.com/agentkernel/openclaw-desktop',
-  D12: 'https://github.com/agentkernel/openclaw-desktop',
-  D14: 'https://github.com/agentkernel/openclaw-desktop/releases',
+  D10: 'https://github.com/99apps-id/openclaw-desktop-plus',
+  D12: 'https://github.com/99apps-id/openclaw-desktop-plus',
+  D14: 'https://github.com/99apps-id/openclaw-desktop-plus/releases',
   D16: '',                          // Privacy policy URL (optional if no collection)
   D18: '',                          // Wikipedia URL
   D20: 'All-in-one installer for OpenClaw Windows Desktop',
   D22: 'Electron-based Windows installer that bundles OpenClaw and Node.js, providing a native desktop experience with an installation wizard and visual configuration.',
-  D24: 'Open source project on GitHub (github.com/agentkernel/openclaw-desktop) with CI/CD via GitHub Actions. Community-maintained Windows distribution for OpenClaw.',
+  D24: 'Open source project on GitHub (github.com/99apps-id/openclaw-desktop-plus) with CI/CD via GitHub Actions. Community-maintained Windows distribution for OpenClaw.',
   D26: USER_FULL_NAME,
   D28: USER_EMAIL,
   D30: 'GitHub Actions',

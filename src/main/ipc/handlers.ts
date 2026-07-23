@@ -74,6 +74,8 @@ import {
   IPC_MODELS_SET_DEFAULT,
   IPC_MODELS_SET_FALLBACKS,
   IPC_MODELS_SET_ALIASES,
+  IPC_MODELS_AUTH_LOGIN,
+  IPC_GATEWAY_APPLY_CONNECTION,
   IPC_PLUGINS_LIST,
   IPC_PLUGINS_TOGGLE,
   IPC_PLUGINS_INSTALL,
@@ -85,7 +87,9 @@ import {
   IPC_PAIRING_LIST_APPROVED,
   IPC_PAIRING_APPROVE,
   IPC_PAIRING_REMOVE_APPROVED,
+  IPC_CHAT_PICK_ATTACHMENTS,
 } from '../../shared/ipc-channels.js'
+import { pickAndInjectChatAttachments } from '../control-ui/pick-attachments.js'
 import { runPrestartCheck, exportDiagnostics, runDiagnostics, getDiagnosticsSummary } from '../diagnostics/index.js'
 import {
   checkForUpdates,
@@ -113,6 +117,7 @@ import {
 } from '../providers/index.js'
 import { listSkillsWithProxy } from '../skills/index.js'
 import { listModelsWithProxy } from '../models/index.js'
+import { modelsAuthLogin } from '../models/models-auth-proxy.js'
 import {
   listPluginsWithCli,
   togglePlugin,
@@ -162,6 +167,8 @@ export interface IpcHandlerDeps {
   setMainWindowTitle?: (title: string) => void
   /** Rebuild tray menu (e.g. after ShellConfig.locale change) */
   refreshTrayMenu?: () => void
+  /** Main BrowserWindow for native dialogs / Control UI frame inject */
+  getMainWindow?: () => import('electron').BrowserWindow | null
 }
 
 function ok<T>(data: T): IpcResult<T> {
@@ -225,6 +232,7 @@ function parseModelConfigPayload(raw: Record<string, unknown>): ModelConfig {
     moonshotRegion: raw.moonshotRegion === 'cn' ? 'cn' : raw.moonshotRegion === 'global' ? 'global' : undefined,
     customProviderId: typeof raw.customProviderId === 'string' ? raw.customProviderId : undefined,
     customBaseUrl: typeof raw.customBaseUrl === 'string' ? raw.customBaseUrl : undefined,
+    endpointUrl: typeof raw.endpointUrl === 'string' ? raw.endpointUrl : undefined,
     cloudflareAccountId: typeof raw.cloudflareAccountId === 'string' ? raw.cloudflareAccountId : undefined,
     cloudflareGatewayId: typeof raw.cloudflareGatewayId === 'string' ? raw.cloudflareGatewayId : undefined,
     customCompatibility:
@@ -262,9 +270,13 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
 
   ipcMain.handle(
     IPC_GATEWAY_START,
-    wrapHandler('GATEWAY_START', () => {
+    wrapHandler('GATEWAY_START', async () => {
       const config = deps.readOpenClawConfig()
       const gw = config?.gateway
+      if (gw?.mode === 'remote') {
+        return gatewayManager.applyRemoteFromConfig(config)
+      }
+      await gatewayManager.clearRemoteMode()
       const port = gw?.port ?? DEFAULT_GATEWAY_PORT
       const bind = gw?.bind ?? 'loopback'
       const token = gw?.auth?.token?.trim()
@@ -280,9 +292,13 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
 
   ipcMain.handle(
     IPC_GATEWAY_RESTART,
-    wrapHandler('GATEWAY_RESTART', () => {
+    wrapHandler('GATEWAY_RESTART', async () => {
       const config = deps.readOpenClawConfig()
       const gw = config?.gateway
+      if (gw?.mode === 'remote') {
+        return gatewayManager.applyRemoteFromConfig(config)
+      }
+      await gatewayManager.clearRemoteMode()
       const port = gw?.port ?? DEFAULT_GATEWAY_PORT
       const bind = gw?.bind ?? 'loopback'
       const token = gw?.auth?.token?.trim()
@@ -380,18 +396,7 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
     IPC_WIZARD_TEST_MODEL,
     wrapHandler('WIZARD_TEST_MODEL', (config: unknown) => {
       const raw = validatePlainObject(config, 'modelConfig')
-      const cfg: ModelConfig = {
-        provider: raw.provider as ModelConfig['provider'],
-        apiKey: String(raw.apiKey ?? ''),
-        modelId: String(raw.modelId ?? ''),
-        moonshotRegion: raw.moonshotRegion === 'cn' ? 'cn' : raw.moonshotRegion === 'global' ? 'global' : undefined,
-        customProviderId: typeof raw.customProviderId === 'string' ? raw.customProviderId : undefined,
-        customBaseUrl: typeof raw.customBaseUrl === 'string' ? raw.customBaseUrl : undefined,
-        cloudflareAccountId: typeof raw.cloudflareAccountId === 'string' ? raw.cloudflareAccountId : undefined,
-        cloudflareGatewayId: typeof raw.cloudflareGatewayId === 'string' ? raw.cloudflareGatewayId : undefined,
-        customCompatibility:
-          raw.customCompatibility === 'anthropic' ? 'anthropic' : raw.customCompatibility === 'openai' ? 'openai' : undefined,
-      }
+      const cfg = parseModelConfigPayload(raw)
       if (!cfg.provider || !cfg.apiKey || !cfg.modelId) {
         throw new Error('modelConfig must include provider, apiKey, and modelId')
       }
@@ -468,11 +473,17 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
 
   ipcMain.handle(
     IPC_DIAGNOSTICS_RUN,
-    wrapHandler('DIAGNOSTICS_RUN', async () => {
+    wrapHandler('DIAGNOSTICS_RUN', async (opts?: unknown) => {
+      const fix =
+        opts != null &&
+        typeof opts === 'object' &&
+        !Array.isArray(opts) &&
+        (opts as { fix?: unknown }).fix === true
       return runDiagnostics({
         readOpenClawConfig: deps.readOpenClawConfig,
         readShellConfig: deps.readShellConfig,
         gatewayStatus: () => gatewayManager.getStatus(),
+        fix,
       })
     }),
   )
@@ -561,18 +572,7 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
     IPC_PROVIDERS_TEST,
     wrapHandler('PROVIDERS_TEST', (config: unknown) => {
       const raw = validatePlainObject(config, 'modelConfig')
-      const cfg: ModelConfig = {
-        provider: raw.provider as ModelConfig['provider'],
-        apiKey: String(raw.apiKey ?? ''),
-        modelId: String(raw.modelId ?? ''),
-        moonshotRegion: raw.moonshotRegion === 'cn' ? 'cn' : raw.moonshotRegion === 'global' ? 'global' : undefined,
-        customProviderId: typeof raw.customProviderId === 'string' ? raw.customProviderId : undefined,
-        customBaseUrl: typeof raw.customBaseUrl === 'string' ? raw.customBaseUrl : undefined,
-        cloudflareAccountId: typeof raw.cloudflareAccountId === 'string' ? raw.cloudflareAccountId : undefined,
-        cloudflareGatewayId: typeof raw.cloudflareGatewayId === 'string' ? raw.cloudflareGatewayId : undefined,
-        customCompatibility:
-          raw.customCompatibility === 'anthropic' ? 'anthropic' : raw.customCompatibility === 'openai' ? 'openai' : undefined,
-      }
+      const cfg = parseModelConfigPayload(raw)
       if (!cfg.provider || !cfg.apiKey || !cfg.modelId) {
         throw new Error('modelConfig must include provider, apiKey, and modelId')
       }
@@ -885,6 +885,64 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
     }),
   )
 
+  ipcMain.handle(
+    IPC_MODELS_AUTH_LOGIN,
+    wrapHandler('MODELS_AUTH_LOGIN', async (opts: unknown) => {
+      const raw = validatePlainObject(opts, 'models:authLogin opts')
+      const provider = String(raw.provider ?? '').trim()
+      const method = raw.method === 'api-key' ? 'api-key' : 'oauth'
+      return modelsAuthLogin(provider, method)
+    }),
+  )
+
+  ipcMain.handle(
+    IPC_GATEWAY_APPLY_CONNECTION,
+    wrapHandler('GATEWAY_APPLY_CONNECTION', async (opts: unknown) => {
+      const raw = validatePlainObject(opts, 'gateway:applyConnection opts')
+      const mode = raw.mode === 'remote' ? 'remote' : 'local'
+      const current = deps.readOpenClawConfig() ?? ({} as OpenClawConfig)
+      const prevGw =
+        current.gateway && typeof current.gateway === 'object'
+          ? (current.gateway as Record<string, unknown>)
+          : {}
+      const nextGw: Record<string, unknown> = { ...prevGw, mode }
+      if (mode === 'remote') {
+        const url = String(raw.url ?? '').trim()
+        if (!url) throw new Error('Remote WebSocket URL is required')
+        const token = String(raw.token ?? '').trim()
+        const transport = raw.transport === 'ssh' ? 'ssh' : 'direct'
+        nextGw.remote = {
+          ...((prevGw.remote && typeof prevGw.remote === 'object'
+            ? prevGw.remote
+            : {}) as Record<string, unknown>),
+          url,
+          ...(token ? { token } : {}),
+          transport,
+        }
+      }
+      const next = { ...current, gateway: nextGw } as OpenClawConfig
+      deps.writeOpenClawConfig(next)
+      if (mode === 'remote') {
+        return gatewayManager.applyRemoteFromConfig(next)
+      }
+      await gatewayManager.clearRemoteMode()
+      const port = typeof nextGw.port === 'number' ? nextGw.port : DEFAULT_GATEWAY_PORT
+      const bind = (typeof nextGw.bind === 'string' ? nextGw.bind : 'loopback') as
+        | 'loopback'
+        | 'lan'
+        | 'auto'
+        | 'tailnet'
+        | 'custom'
+      const auth =
+        nextGw.auth && typeof nextGw.auth === 'object'
+          ? (nextGw.auth as { token?: string })
+          : undefined
+      const token = auth?.token?.trim()
+      const force = Boolean(nextGw.forcePortOnConflict)
+      return gatewayManager.restart({ port, bind, token: token || undefined, force })
+    }),
+  )
+
   // ─── Plugins (CLI proxy) ───────────────────────────────────────────────────
   ipcMain.handle(
     IPC_PLUGINS_LIST,
@@ -1034,6 +1092,15 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
     }),
   )
 
+  // ─── Chat attachments (native dialog → Control UI inject) ──────────────────
+  ipcMain.handle(
+    IPC_CHAT_PICK_ATTACHMENTS,
+    wrapHandler('CHAT_PICK_ATTACHMENTS', async () => {
+      const win = deps.getMainWindow?.() ?? null
+      return pickAndInjectChatAttachments(win)
+    }),
+  )
+
   // ─── Logs (RPC proxy) ──────────────────────────────────────────────────────
   ipcMain.handle(
     IPC_LOGS_TAIL,
@@ -1108,6 +1175,8 @@ export function removeIpcHandlers(): void {
   ipcMain.removeHandler(IPC_MODELS_SET_DEFAULT)
   ipcMain.removeHandler(IPC_MODELS_SET_FALLBACKS)
   ipcMain.removeHandler(IPC_MODELS_SET_ALIASES)
+  ipcMain.removeHandler(IPC_MODELS_AUTH_LOGIN)
+  ipcMain.removeHandler(IPC_GATEWAY_APPLY_CONNECTION)
   ipcMain.removeHandler(IPC_PLUGINS_LIST)
   ipcMain.removeHandler(IPC_PLUGINS_TOGGLE)
   ipcMain.removeHandler(IPC_PLUGINS_INSTALL)
@@ -1119,6 +1188,7 @@ export function removeIpcHandlers(): void {
   ipcMain.removeHandler(IPC_PAIRING_LIST_APPROVED)
   ipcMain.removeHandler(IPC_PAIRING_APPROVE)
   ipcMain.removeHandler(IPC_PAIRING_REMOVE_APPROVED)
+  ipcMain.removeHandler(IPC_CHAT_PICK_ATTACHMENTS)
   ipcMain.removeHandler(IPC_UPDATE_CHECK)
   ipcMain.removeHandler(IPC_UPDATE_DOWNLOAD_SHELL)
   ipcMain.removeHandler(IPC_UPDATE_INSTALL_SHELL)

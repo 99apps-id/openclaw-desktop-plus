@@ -1,79 +1,63 @@
-# Contributing to OpenClaw Desktop
+# Contributing to OpenClaw Desktop Plus
 
-Thank you for considering contributing to OpenClaw Desktop. This repository is a community-maintained Windows desktop distribution for OpenClaw.
+Thanks for contributing. This repository is a community Windows desktop distribution for [OpenClaw](https://github.com/openclaw/openclaw).
 
-## Development Setup
+**Repo:** [github.com/99apps-id/openclaw-desktop-plus](https://github.com/99apps-id/openclaw-desktop-plus)
 
-### Prerequisites
-- **Node.js** >= 22.16.0 (matches `package.json` `engines`)
-- **pnpm** (latest)
-- **Windows 10/11** (for testing)
+## Quick start
 
-### Quick Start
 ```bash
-git clone https://github.com/agentkernel/openclaw-desktop.git
-cd openclaw-desktop
+git clone https://github.com/99apps-id/openclaw-desktop-plus.git
+cd openclaw-desktop-plus
 pnpm install
 pnpm dev
 ```
 
-## Project Structure
+**Prerequisites:** Node.js >= 22.22.3 · pnpm · Windows 10/11 for packaging/tests
+
+More detail: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) · [docs/PACKAGING.md](docs/PACKAGING.md)
+
+## Project layout
 
 ```
 src/
-├── main/        # Electron main process (Gateway, IPC, Config, Update)
-├── renderer/    # React UI (Wizard, Shell views, i18n)
-├── preload/     # Context bridge (IPC)
+├── main/        # Electron main (gateway, IPC, config, updates)
+├── renderer/    # React UI (wizard, shell, i18n)
+├── preload/     # Context bridge
 └── shared/      # Types, constants, IPC channels
+docs/            # Development and packaging guides
 ```
 
-## Code Style
+## Code style
 
-- **TypeScript** — strict mode, no `any` where avoidable
-- **React** — functional components, hooks
-- **Tailwind CSS** — utility-first styling
-- **No unnecessary comments** — code should be self-explanatory
+- TypeScript strict mode
+- React function components
+- Tailwind CSS utilities
+- Prefer clear code over redundant comments
+- **English only** in source comments, UI strings committed in this repo’s docs, and changelog entries
 
-## Testing
+## Checks before a PR
 
 ```bash
-pnpm lint        # ESLint
-pnpm type-check  # TypeScript strict check
-pnpm build       # Production build
-pnpm run package:win  # Windows installer
+pnpm lint
+pnpm type-check
+pnpm build
 ```
 
-## Packaging the Windows installer (local)
-
-`package:win` assumes **`build/node/`** and **`build/openclaw/`** already exist. Run these **before** the one-liner (or use the shortcut):
-
-```bash
-pnpm run package:prepare-deps   # download-node + download-openclaw (npm openclaw@latest)
-pnpm lint && pnpm type-check
-pnpm run package:win
-```
-
-**Control UI (`dist/control-ui/`):** On some Windows machines the upstream Vite/Rolldown UI build fails. Options:
-
-- Let `download-openclaw` build it (default), or
-- Build on Linux / WSL and copy: `build/openclaw/dist/control-ui/` from artifact or `pnpm exec tsx scripts/ci-build-openclaw-control-ui.ts`, then run `pnpm run download-openclaw` with `OPENCLAW_SKIP_CONTROL_UI_BUILD=1` if you already populated that folder.
-
-**After packaging:** `prepare-bundle` (inside `package:win`) refreshes `resources/bundle-manifest.json` with the resolved OpenClaw version.
-
-## Pull Request Guidelines
+## Pull requests
 
 1. Fork and create a feature branch
-2. Ensure `pnpm lint` and `pnpm type-check` pass
-3. Write a clear PR description
-4. Reference any related issues
+2. Keep changes focused
+3. Ensure lint and type-check pass
+4. Describe the change and link related issues
 
-## Release Notes
+## Releases
 
-- Release assets are published through GitHub Actions.
-- The primary downloadable asset is `OpenClaw-Setup-<version>.exe`.
-- For the first public versions, unsigned Windows builds may trigger SmartScreen warnings.
-- **Bundled OpenClaw** version is stored in `resources/bundle-manifest.json` as `bundledOpenClawVersion` (updated by `pnpm run prepare-bundle` from `build/openclaw`). The pin lives in root `package.json` as `openclawBundleVersion`. Desktop **v0.7.0** ships OpenClaw **2026.4.2** alongside shell semver `0.7.0+openclaw.2026.4.2`. **Release Git tags** use `v` + that semver, e.g. **`v0.7.0+openclaw.2026.4.2`** (bundled OpenClaw version is visible in the tag).
+- Assets are published via GitHub Actions ([`.github/workflows/release.yml`](.github/workflows/release.yml)).
+- Installer name: `OpenClaw-Desktop-Plus-Setup-<version>.exe`
+- Bundled OpenClaw pin: `package.json` → `openclawBundleVersion`; manifest refreshed by `prepare-bundle`
+- Release tags: `v` + `package.json` `version` (e.g. `v0.8.0+openclaw.2026.7.1-2`)
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under the GPL-3.0 License.
+By contributing, you agree your contributions are licensed under GPL-3.0.

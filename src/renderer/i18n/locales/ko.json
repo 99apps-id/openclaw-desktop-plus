@@ -1,15 +1,15 @@
 {
   "app": {
-    "name": "OpenClaw Desktop"
+    "name": "OpenClaw Desktop Plus"
   },
   "wizard": {
-    "appName": "OpenClaw Desktop",
+    "appName": "OpenClaw Desktop Plus",
     "setupWizard": "설정 마법사",
     "steps": { "welcome": "시작", "model": "모델", "channel": "채널", "gateway": "게이트웨이", "complete": "완료" },
     "nav": { "previous": "이전", "skip": "건너뛰기", "startSetup": "설정 시작", "next": "다음" },
     "welcome": {
-      "title": "OpenClaw Desktop에 오신 것을 환영합니다",
-      "subtitle": "OpenClaw Desktop은 AI 어시스턴트를 네이티브 Windows 데스크톱 앱으로 패키지하며, 설치와 설정을 통합합니다. 이 마법사가 초기 구성을 안내합니다.",
+      "title": "OpenClaw Desktop Plus에 오신 것을 환영합니다",
+      "subtitle": "OpenClaw Desktop Plus은 AI 어시스턴트를 네이티브 Windows 데스크톱 앱으로 패키지하며, 설치와 설정을 통합합니다. 이 마법사가 초기 구성을 안내합니다.",
       "startHint": "아래의 \"설정 시작\"을 클릭하여 시작하세요",
       "features": {
         "model": { "title": "AI 모델 연동", "description": "Anthropic, OpenAI, Google 등 주요 제공업체 지원. 원클릭 API 키 설정." },
@@ -76,9 +76,9 @@
     "dashboard": { "title": "대시보드", "subtitle": "게이트웨이 상태, 버전 정보 및 설정과 로그에 대한 빠른 액세스", "gateway": "게이트웨이", "versions": "버전", "quickActions": "빠른 작업", "logs": "로그", "logsDesc": "로그 디렉토리 열기", "diagnostics": "진단", "diagnosticsDesc": "진단 보고서 내보내기", "settings": "설정", "settingsDesc": "외관, 시작, 테마", "updates": "업데이트", "updatesDesc": "새 버전 확인", "skills": "스킬", "skillsDesc": "스킬 및 확장 관리", "llmApi": "LLM API", "llmApiDesc": "제공업체 및 인증 프로필", "recentError": "최근 오류", "errorHint": "게이트웨이 서비스가 예기치 않게 종료되었습니다. 로그를 확인하거나 재시도하세요." },
     "settings": { "title": "설정", "closeToTray": "닫을 때 트레이로 최소화", "closeToTrayDesc": "창을 닫은 후에도 시스템 트레이에서 앱이 계속 실행됩니다", "autoStart": "로그인 시 시작", "autoStartDesc": "Windows 로그인 시 OpenClaw 자동 시작", "language": "표시 언어", "languageDesc": "앱 창과 트레이 메뉴의 인터페이스 언어를 선택합니다.", "languageSelectAria": "표시 언어", "theme": "외관 테마", "themeDesc": "앱의 표시 테마를 선택합니다", "system": "시스템", "light": "라이트", "dark": "다크", "updateChannel": "업데이트 채널", "updateChannelDesc": "안정 릴리스 또는 베타 얼리 액세스 중 선택", "stable": "안정", "beta": "베타", "loading": "설정 로드 중…", "loadFailed": "설정 로드 실패" },
     "about": { "title": "정보", "shellVersion": "Shell 버전", "viewOnGithub": "GitHub에서 프로젝트 보기", "fetchingVersions": "버전 정보 가져오는 중…" },
-    "updates": { "title": "업데이트 및 유지보수", "checkForUpdates": "업데이트 확인", "checkHint": "GitHub에서 OpenClaw Desktop의 새 버전이 있는지 확인합니다.", "checkNow": "지금 확인", "checking": "업데이트 확인 중…", "checkFailed": "업데이트를 확인할 수 없습니다", "newVersion": "새 버전 사용 가능!", "current": "현재", "latest": "최신", "published": "게시됨", "downloadInstaller": "설치 프로그램 다운로드", "viewRelease": "릴리스 보기", "upToDate": "최신 버전을 사용 중입니다 ({{version}}).", "checkAgain": "다시 확인", "bundleIntegrity": "번들 무결성", "verifying": "번들 검증 중…", "bundleOk": "번들이 완전하고 유효합니다", "bundleIssues": "번들에 문제가 있습니다", "nodeRuntime": "Node.js 런타임", "openclawPackage": "OpenClaw 패키지", "electronShell": "Electron 셸", "appVersion": "앱 버전", "missingFiles": "누락된 파일:", "reinstallHint": "앱을 재설치하면 누락된 파일이 해결됩니다.", "reVerify": "재검증", "healthCheck": "시스템 상태 확인", "healthCheckHint": "번들 무결성, 설정 유효성, 서비스 준비 상태를 포함한 종합 상태 확인을 실행합니다.", "runHealthCheck": "상태 확인 실행", "runningCheck": "상태 확인 실행 중…", "allPassed": "모든 확인 통과", "issuesDetected": "문제 감지됨", "bundleIntegrityCheck": "번들 무결성", "configExists": "설정 파일 존재", "configValid": "설정 유효", "errors": "오류:", "suggestions": "제안:", "reCheck": "재확인", "openLogDir": "로그 디렉토리 열기", "repairRollback": "복구 및 롤백", "reinstall": "재설치", "reinstallDesc": "번들 무결성 검사에 실패하면 GitHub Releases에서 최신 설치 프로그램을 다운로드하여 재설치하세요.", "resetConfig": "설정 초기화", "resetConfigDesc": "설정이 손상된 경우 설정 파일을 삭제하고 앱을 다시 시작하세요.", "rollback": "롤백", "rollbackDesc": "이전 버전으로 롤백하려면 GitHub Releases에서 이전 설치 프로그램을 다운로드하세요.", "viewAllReleases": "모든 릴리스 보기" },
-    "loading": { "appName": "OpenClaw Desktop", "checkingConfig": "구성 확인 중…", "timeout": "게이트웨이 시작 시간 초과", "retry": "재시도" },
-    "error": { "appName": "OpenClaw Desktop", "preloadTitle": "OpenClaw Desktop", "preloadBody": "프리로드 스크립트를 로드하지 못했습니다. 내부 통신을 사용할 수 없습니다. 다시 설치하거나 다시 패키징해 보세요.", "preloadHint": "디버깅 시 `resources/app.asar(.unpacked)/out/preload/`에 `index.cjs`가 있는지 확인하세요.", "retry": "재시도", "openLogDir": "로그 디렉토리 열기" },
+    "updates": { "title": "업데이트 및 유지보수", "checkForUpdates": "업데이트 확인", "checkHint": "GitHub에서 OpenClaw Desktop Plus의 새 버전이 있는지 확인합니다.", "checkNow": "지금 확인", "checking": "업데이트 확인 중…", "checkFailed": "업데이트를 확인할 수 없습니다", "newVersion": "새 버전 사용 가능!", "current": "현재", "latest": "최신", "published": "게시됨", "downloadInstaller": "설치 프로그램 다운로드", "viewRelease": "릴리스 보기", "upToDate": "최신 버전을 사용 중입니다 ({{version}}).", "checkAgain": "다시 확인", "bundleIntegrity": "번들 무결성", "verifying": "번들 검증 중…", "bundleOk": "번들이 완전하고 유효합니다", "bundleIssues": "번들에 문제가 있습니다", "nodeRuntime": "Node.js 런타임", "openclawPackage": "OpenClaw 패키지", "electronShell": "Electron 셸", "appVersion": "앱 버전", "missingFiles": "누락된 파일:", "reinstallHint": "앱을 재설치하면 누락된 파일이 해결됩니다.", "reVerify": "재검증", "healthCheck": "시스템 상태 확인", "healthCheckHint": "번들 무결성, 설정 유효성, 서비스 준비 상태를 포함한 종합 상태 확인을 실행합니다.", "runHealthCheck": "상태 확인 실행", "runningCheck": "상태 확인 실행 중…", "allPassed": "모든 확인 통과", "issuesDetected": "문제 감지됨", "bundleIntegrityCheck": "번들 무결성", "configExists": "설정 파일 존재", "configValid": "설정 유효", "errors": "오류:", "suggestions": "제안:", "reCheck": "재확인", "openLogDir": "로그 디렉토리 열기", "repairRollback": "복구 및 롤백", "reinstall": "재설치", "reinstallDesc": "번들 무결성 검사에 실패하면 GitHub Releases에서 최신 설치 프로그램을 다운로드하여 재설치하세요.", "resetConfig": "설정 초기화", "resetConfigDesc": "설정이 손상된 경우 설정 파일을 삭제하고 앱을 다시 시작하세요.", "rollback": "롤백", "rollbackDesc": "이전 버전으로 롤백하려면 GitHub Releases에서 이전 설치 프로그램을 다운로드하세요.", "viewAllReleases": "모든 릴리스 보기" },
+    "loading": { "appName": "OpenClaw Desktop Plus", "checkingConfig": "구성 확인 중…", "timeout": "게이트웨이 시작 시간 초과", "retry": "재시도" },
+    "error": { "appName": "OpenClaw Desktop Plus", "preloadTitle": "OpenClaw Desktop Plus", "preloadBody": "프리로드 스크립트를 로드하지 못했습니다. 내부 통신을 사용할 수 없습니다. 다시 설치하거나 다시 패키징해 보세요.", "preloadHint": "디버깅 시 `resources/app.asar(.unpacked)/out/preload/`에 `index.cjs`가 있는지 확인하세요.", "retry": "재시도", "openLogDir": "로그 디렉토리 열기" },
     "nav": { "dashboard": "대시보드", "dashboardDesc": "게이트웨이 상태 및 버전", "llmApi": "LLM API", "llmApiDesc": "제공업체 및 인증 프로필", "skills": "스킬", "skillsDesc": "스킬 및 확장", "updates": "업데이트", "updatesDesc": "업데이트 확인", "settings": "설정", "settingsDesc": "외관 및 시작", "about": "정보", "aboutDesc": "버전 정보", "desktopManager": "데스크톱 매니저", "desktopManagerDesc": "데스크톱 전용 기능 및 설정", "backToControlUI": "Control UI" },
     "status": { "starting": "시작 중…", "running": "실행 중", "stopped": "중지됨", "error": "오류", "loadingVersions": "버전 정보 로드 중…", "comingSoon": "곧 출시" }
   }

@@ -1,18 +1,16 @@
 /**
- * OpenClaw upstream hardcodes `slack` in `CHAT_CHANNEL_ORDER` inside the compiled
- * `dist/chat-meta-*.js` chunk. When the Slack extension is stripped (because `@slack/web-api`
- * is not in the published npm tarball), the startup check throws:
+ * OpenClaw upstream lists `slack` in bundled chat-channel metadata. When the Slack extension is
+ * stripped (because `@slack/web-api` is not in the published npm tarball), startup can throw:
  *
  *   `Missing bundled chat channel metadata for: slack`
  *
- * This patch removes `slack` from the hardcoded order array so the bundle works
- * without the Slack extension or its runtime dependency.
+ * Layouts:
+ * - Older: hardcoded `"slack"` inside `CHAT_CHANNEL_ORDER` in `chat-meta-*.js` / `channel-options-*.js`.
+ * - 2026.7+: `CHAT_CHANNEL_ORDER` is derived from `GENERATED_BUNDLED_CHANNEL_CONFIG_METADATA` in
+ *   `ids-*.js` via `listBundledChatChannelEntries()` — filter `channelId`/`pluginId` `"slack"` there.
  *
- * Additionally, `slack-surface-*.js` delegates all function calls through a facade loader
- * to `slack/api.js`. When that surface is stripped, the facade throws on the first call.
- * We replace `slack-surface-*.js` with stub no-op exports so the HTTP stage for Slack
- * fails silently (the gateway's `runGatewayHttpRequestStages` already handles `.catch`
- * and skips the stage).
+ * Additionally, `slack-surface-*.js` (when present) delegates through a facade loader to
+ * `slack/api.js`. When that surface is stripped, replace with stub no-op exports.
  *
  * Idempotent: safe to run after every download-openclaw / prepare-bundle.
  */
@@ -64,6 +62,51 @@ const unpinSlackMessage=async()=>null;
 export{resolveSlackGroupToolPolicy as A,readSlackMessages as C,resolveDefaultSlackAccountId as D,removeSlackReaction as E,resolveSlackRuntimeGroupPolicy as M,sendSlackMessage as N,resolveSlackAutoThreadId as O,unpinSlackMessage as P,reactSlackMessage as S,removeOwnSlackReactions as T,listSlackPins as _,editSlackMessage as a,parseSlackBlocksInput as b,handleSlackHttpRequest as c,listEnabledSlackAccounts as d,listSlackAccountIds as f,listSlackMessageActions as g,listSlackEmojis as h,downloadSlackFile as i,resolveSlackReplyToMode as j,resolveSlackGroupRequireMention as k,inspectSlackAccount as l,listSlackDirectoryPeersFromConfig as m,createSlackWebClient as n,extractSlackToolSend as o,listSlackDirectoryGroupsFromConfig as p,deleteSlackMessage as r,getSlackMemberInfo as s,buildSlackThreadingToolContext as t,isSlackInteractiveRepliesEnabled as u,listSlackReactions as v,recordSlackThreadParticipation as w,pinSlackMessage as x,normalizeAllowListLower as y};
 `.trimStart()
 
+const IDS_PATCH_MARKER = '/* openclaw-desktop: slack stripped from bundled channel metadata */'
+const ORDER_PATCH_MARKER = '/* openclaw-desktop: slack stripped from channel order */'
+
+/** 2026.7+: filter slack out of listBundledChatChannelEntries() in ids-*.js */
+async function patchIdsBundledChannelEntries(filePath: string): Promise<boolean> {
+  let raw = await readFile(filePath, 'utf8')
+  if (raw.includes(IDS_PATCH_MARKER)) return false
+
+  const before = raw
+  // Pretty and minified forms of the configurable filter inside listBundledChatChannelEntries.
+  raw = raw.replace(
+    /GENERATED_BUNDLED_CHANNEL_CONFIG_METADATA\.filter\(\((entry)\)\s*=>\s*\1\.configurable\s*!==\s*false\)/g,
+    `GENERATED_BUNDLED_CHANNEL_CONFIG_METADATA.filter(($1)=>$1.configurable!==false&&$1.channelId!=="slack"&&$1.pluginId!=="slack")`,
+  )
+  if (raw === before) {
+    return false
+  }
+  raw = `// ${IDS_PATCH_MARKER}\n` + raw
+  await writeFile(filePath, raw, 'utf8')
+  console.log(`  [patch-slack] ${basename(filePath)}: slack filtered from listBundledChatChannelEntries`)
+  return true
+}
+
+/** Older layout: remove `"slack"` from hardcoded CHAT_CHANNEL_ORDER arrays. */
+async function patchHardcodedChannelOrder(filePath: string): Promise<boolean> {
+  let raw = await readFile(filePath, 'utf8')
+  if (raw.includes(ORDER_PATCH_MARKER)) return false
+
+  const slackEntry = /[\s\n]*"slack",/
+  if (!slackEntry.test(raw)) {
+    const slackEntryNoComma = /[\s\n]*"slack"\s*\]/
+    if (!slackEntryNoComma.test(raw)) {
+      return false
+    }
+    raw = raw.replace(slackEntryNoComma, '\n]')
+  } else {
+    raw = raw.replace(slackEntry, '')
+  }
+
+  raw = `// ${ORDER_PATCH_MARKER}\n` + raw
+  await writeFile(filePath, raw, 'utf8')
+  console.log(`  [patch-slack] ${basename(filePath)}: "slack" removed from CHAT_CHANNEL_ORDER`)
+  return true
+}
+
 export async function patchOpenClawStripSlackChannel(openclawRoot: string): Promise<void> {
   const dist = join(openclawRoot, 'dist')
   let names: string[]
@@ -73,43 +116,47 @@ export async function patchOpenClawStripSlackChannel(openclawRoot: string): Prom
     return
   }
 
+  let patchedAny = false
+  let idsAlreadyPatched = false
+
+  for (const n of names.filter((name) => /^ids-.*\.js$/.test(name))) {
+    const filePath = join(dist, n)
+    const existing = await readFile(filePath, 'utf8')
+    if (existing.includes(IDS_PATCH_MARKER)) {
+      idsAlreadyPatched = true
+      continue
+    }
+    if (await patchIdsBundledChannelEntries(filePath)) patchedAny = true
+  }
+
   // Hashed output file name varies per build — CHAT_CHANNEL_ORDER has moved between
   // chat-meta-*.js and channel-options-*.js across upstream versions; match both.
-  const candidatePaths = names
-    .filter((n) => /^chat-meta-.*\.js$/.test(n) || /^channel-options-.*\.js$/.test(n))
-    .map((n) => join(dist, n))
-
-  if (candidatePaths.length === 0) return
-
-  for (const filePath of candidatePaths) {
-    let raw = await readFile(filePath, 'utf8')
-
-    // Skip if already patched
-    const patchedMarker = '/* openclaw-desktop: slack stripped from channel order */'
-    if (raw.includes(patchedMarker)) continue
-
-    // Match the hardcoded CHAT_CHANNEL_ORDER array and remove "slack"
-    // Expected: "slack", with surrounding whitespace/newline (minified code)
-    const slackEntry = /[\s\n]*"slack",/
-    if (!slackEntry.test(raw)) {
-      // Also try without trailing comma (in case it's the last element)
-      const slackEntryNoComma = /[\s\n]*"slack"\s*\]/
-      if (slackEntryNoComma.test(raw)) {
-        raw = raw.replace(slackEntryNoComma, '\n]')
-      } else {
-        console.warn(
-          `  [patch-slack] ${basename(filePath)}: CHAT_CHANNEL_ORDER "slack" entry not found — layout may have changed`,
-        )
-        continue
-      }
-    } else {
-      raw = raw.replace(slackEntry, '')
+  for (const n of names.filter(
+    (name) => /^chat-meta-.*\.js$/.test(name) || /^channel-options-.*\.js$/.test(name),
+  )) {
+    const filePath = join(dist, n)
+    const raw = await readFile(filePath, 'utf8')
+    // Skip pure re-export barrels that only import CHAT_CHANNEL_ORDER (no literal "slack").
+    if (!/"slack"/.test(raw)) continue
+    if (raw.includes(ORDER_PATCH_MARKER)) {
+      patchedAny = true
+      continue
     }
+    if (await patchHardcodedChannelOrder(filePath)) patchedAny = true
+    else {
+      console.warn(
+        `  [patch-slack] ${n}: contains "slack" but CHAT_CHANNEL_ORDER entry not matched — layout may have changed`,
+      )
+    }
+  }
 
-    // Add idempotent marker so we know this file was patched
-    raw = `// ${patchedMarker}\n` + raw
-    await writeFile(filePath, raw, 'utf8')
-    console.log(`  [patch-slack] ${basename(filePath)}: "slack" removed from CHAT_CHANNEL_ORDER`)
+  if (!patchedAny && !idsAlreadyPatched) {
+    const idsPresent = names.some((n) => /^ids-.*\.js$/.test(n))
+    if (idsPresent) {
+      console.warn(
+        '  [patch-slack] ids-*.js present but listBundledChatChannelEntries filter not patched — layout may have changed',
+      )
+    }
   }
 
   // Patch slack-surface-*.js: replace facade-loader stubs with inline no-ops so the

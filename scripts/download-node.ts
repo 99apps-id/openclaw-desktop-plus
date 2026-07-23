@@ -1,7 +1,7 @@
 /**
  * Download portable Node.js (Windows x64) to build/node/
  * Usage: pnpm run download-node [-- <version>]
- * Default: 22.16.0
+ * Default: 22.23.1
  */
 
 import { createWriteStream } from 'node:fs'
@@ -14,7 +14,7 @@ import { execSync } from 'node:child_process'
 import AdmZip from 'adm-zip'
 
 /** Keep in sync with scripts/check-openclaw-versions.ts BUNDLED_NODE_VERSION and release.yml NODE_VERSION_CI */
-const DEFAULT_VERSION = '22.16.0'
+const DEFAULT_VERSION = '22.23.1'
 const NODE_DIST_URL = 'https://nodejs.org/dist'
 const BUILD_DIR = join(process.cwd(), 'build')
 const NODE_DIR = join(BUILD_DIR, 'node')
