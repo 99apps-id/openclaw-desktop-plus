@@ -1,6 +1,6 @@
 {
   "name": "openclaw-desktop-plus",
-  "version": "0.8.1+openclaw.2026.7.1-2",
+  "version": "0.8.2+openclaw.2026.7.1-2",
   "openclawBundleVersion": "2026.7.1-2",
   "openclawFeishuLarkSdkVersion": "^1.60.0",
   "description": "OpenClaw Desktop Plus — community Windows desktop app and installer for OpenClaw.",
@@ -12,6 +12,8 @@
     "preview": "electron-vite preview",
     "lint": "eslint .",
     "type-check": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "download-node": "tsx scripts/download-node.ts",
     "download-openclaw": "tsx scripts/download-openclaw.ts",
     "package:prepare-deps": "pnpm run download-node && pnpm run download-openclaw",
@@ -76,6 +78,7 @@
     "tsx": "^4.21.0",
     "typescript": "~5.9.0",
     "typescript-eslint": "^8.56.1",
+    "vitest": "3",
     "xlsx": "^0.18.5"
   },
   "pnpm": {

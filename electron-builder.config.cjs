@@ -71,7 +71,9 @@ function validateOpenclaw(openclawDir) {
 }
 
 const iconIcoPath = path.join(__dirname, 'resources', 'icon.ico')
-const fastInstallerMode = process.env.OPENCLAW_FAST_INSTALLER !== '0'
+// Default off: NSIS `useZip` has caused "Failed to decompress files / Error opening ZIP file"
+// on large OpenClaw bundles. Opt in with OPENCLAW_FAST_INSTALLER=1 for faster local packs.
+const fastInstallerMode = process.env.OPENCLAW_FAST_INSTALLER === '1'
 
 module.exports = {
   appId: 'com.openclaw.desktop-plus',

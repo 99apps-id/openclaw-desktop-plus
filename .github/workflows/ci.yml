@@ -18,7 +18,7 @@ env:
 
 jobs:
   verify:
-    name: Lint, type-check, build
+    name: Lint, type-check, test, build
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:
@@ -55,6 +55,9 @@ jobs:
 
       - name: Type check
         run: pnpm run type-check
+
+      - name: Unit tests
+        run: pnpm test
 
       - name: Build
         run: pnpm run build

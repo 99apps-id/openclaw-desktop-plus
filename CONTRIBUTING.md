@@ -56,7 +56,7 @@ pnpm build
 - Assets are published via GitHub Actions ([`.github/workflows/release.yml`](.github/workflows/release.yml)).
 - Installer name: `OpenClaw-Desktop-Plus-Setup-<version>.exe`
 - Bundled OpenClaw pin: `package.json` → `openclawBundleVersion`; manifest refreshed by `prepare-bundle`
-- Release tags: `v` + `package.json` `version` (e.g. `v0.8.1+openclaw.2026.7.1-2`)
+- Release tags: `v` + `package.json` `version` (e.g. `v0.8.2+openclaw.2026.7.1-2`)
 
 ## License
 

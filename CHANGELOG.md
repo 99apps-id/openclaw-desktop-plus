@@ -4,6 +4,16 @@ All notable changes to OpenClaw Desktop Plus will be documented in this file.
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-07-24
+
+### Added
+
+- **Unit tests:** Vitest for `model-ref`, `gateway-remote`, and Control UI flag merge; `pnpm test` runs in CI.
+
+### Fixed
+
+- **NSIS installer:** Default off `useZip` (opt-in via `OPENCLAW_FAST_INSTALLER=1`) to avoid “Failed to decompress files / Error opening ZIP file” on large bundles.
+
 ## [0.8.1] - 2026-07-24
 
 ### Added

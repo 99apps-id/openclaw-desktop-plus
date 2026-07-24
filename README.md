@@ -77,8 +77,8 @@ Full operator walkthrough: **[docs/USER_GUIDE.md](docs/USER_GUIDE.md)**.
 
 | | |
 | --- | --- |
-| **Shell** | `0.8.1+openclaw.2026.7.1-2` |
-| **Git tag** | `v0.8.1+openclaw.2026.7.1-2` |
+| **Shell** | `0.8.2+openclaw.2026.7.1-2` |
+| **Git tag** | `v0.8.2+openclaw.2026.7.1-2` |
 | **Bundled OpenClaw** | `2026.7.1-2` (`openclawBundleVersion` in `package.json`) |
 | **Bundled Node.js** | `22.23.1` |
 
