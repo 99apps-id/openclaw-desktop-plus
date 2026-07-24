@@ -50,11 +50,32 @@ export async function ensureOpenClawFeishuLarkSdk(openclawRoot: string): Promise
   console.log(`  [feishu-sdk] npm install ${pkgArg} (cwd=${openclawRoot})...`)
 
   // Use execSync (shell on Windows) so `npm` resolves to npm.cmd; execFileSync('npm') → ENOENT.
-  execSync(`npm install ${pkgArg} --no-save --no-audit --no-fund`, {
-    cwd: openclawRoot,
-    stdio: 'inherit',
-    env: { ...process.env, NODE_ENV: '' },
-  })
+  // Some CI npm versions crash with `Cannot read properties of null (reading 'edgesOut')`;
+  // retry with legacy-peer-deps, then npm@10 via npx.
+  const installAttempts = [
+    `npm install ${pkgArg} --no-save --no-audit --no-fund --legacy-peer-deps`,
+    `npx --yes npm@10.9.2 install ${pkgArg} --no-save --no-audit --no-fund --legacy-peer-deps`,
+  ]
+  let lastErr: unknown
+  for (const cmd of installAttempts) {
+    try {
+      execSync(cmd, {
+        cwd: openclawRoot,
+        stdio: 'inherit',
+        env: { ...process.env, NODE_ENV: '' },
+      })
+      lastErr = undefined
+      break
+    } catch (err) {
+      lastErr = err
+      console.warn(
+        `  [feishu-sdk] install attempt failed (${err instanceof Error ? err.message : String(err)}); retrying…`,
+      )
+    }
+  }
+  if (lastErr) {
+    throw lastErr instanceof Error ? lastErr : new Error(String(lastErr))
+  }
 
   if (!(await fileExists(marker))) {
     throw new Error(`[feishu-sdk] install failed — missing ${marker}`)
