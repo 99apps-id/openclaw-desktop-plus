@@ -118,6 +118,8 @@ export function ModelSettingsSection() {
   const authMode = getProviderAuthMode(modelConfig.provider)
 
   const mergedModelChoices = useMemo(() => {
+    // Custom OpenAI-compatible hosts always use a free-text model ID — don't mix in gateway catalog.
+    if (modelConfig.provider === 'custom') return []
     const presetIds = new Set((providerPresets ?? []).map((m) => m.id))
     const providerPrefix = `${modelConfig.provider}/`
     const fromGateway = gatewayModelIds
@@ -176,7 +178,26 @@ export function ModelSettingsSection() {
       setModelConfig((m) => ({ ...m, modelId: '' }))
     } else {
       setUseCustomModel(false)
-      setModelConfig((m) => ({ ...m, modelId: value }))
+      setModelConfig((m) => {
+        // Gateway catalog returns provider/id; store bare id when it matches current provider
+        // so mergeModelIntoOpenClawConfig does not write provider/provider/id.
+        let modelId = value
+        if (value.includes('/')) {
+          const slash = value.indexOf('/')
+          const prov = value.slice(0, slash)
+          const rest = value.slice(slash + 1)
+          const customId = m.customProviderId?.trim()
+          if (
+            rest &&
+            (prov === m.provider ||
+              (m.provider === 'custom' && customId && prov === customId) ||
+              (m.provider === 'moonshot-cn' && prov === 'moonshot'))
+          ) {
+            modelId = rest
+          }
+        }
+        return { ...m, modelId }
+      })
     }
     setTestState({ status: 'idle', message: '' })
     setSaveBanner(null)
@@ -430,7 +451,9 @@ export function ModelSettingsSection() {
           <label htmlFor="settings-model-id" className="text-sm font-medium">
             {t('wizard.model.defaultModel')} <span className="text-destructive">*</span>
           </label>
-          {(hasPresets || mergedModelChoices.length > 0) && !useCustomModel ? (
+          {modelConfig.provider !== 'custom' &&
+          (hasPresets || mergedModelChoices.length > 0) &&
+          !useCustomModel ? (
             <Select value={modelConfig.modelId} onValueChange={handleModelSelect}>
               <SelectTrigger id="settings-model-id" className="w-full">
                 <SelectValue placeholder={t('wizard.model.selectModel')} />
@@ -455,10 +478,14 @@ export function ModelSettingsSection() {
                   setTestState({ status: 'idle', message: '' })
                   setSaveBanner(null)
                 }}
-                placeholder={t('wizard.model.enterModelId')}
+                placeholder={
+                  modelConfig.provider === 'custom'
+                    ? t('wizard.model.enterModelId')
+                    : t('wizard.model.enterModelId')
+                }
                 className="font-mono"
               />
-              {hasPresets || mergedModelChoices.length > 0 ? (
+              {modelConfig.provider !== 'custom' && (hasPresets || mergedModelChoices.length > 0) ? (
                 <button
                   type="button"
                   onClick={() => {
@@ -475,6 +502,64 @@ export function ModelSettingsSection() {
           )}
         </fieldset>
       </div>
+
+      {modelConfig.provider === 'custom' && (
+        <fieldset className="space-y-3 rounded-md border border-border/80 bg-muted/20 p-3">
+          <p className="text-xs text-muted-foreground">{t('shell.llmApi.addCustomEndpointHint')}</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label htmlFor="settings-custom-pid" className="text-sm font-medium">
+                {t('wizard.model.providerId')} <span className="text-destructive">*</span>
+              </label>
+              <Input
+                id="settings-custom-pid"
+                value={modelConfig.customProviderId ?? ''}
+                onChange={(e) =>
+                  setModelConfig((m) => ({ ...m, customProviderId: e.target.value }))
+                }
+                className="font-mono"
+                placeholder="my-proxy"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="settings-custom-url" className="text-sm font-medium">
+                {t('wizard.model.apiBaseUrl')} <span className="text-destructive">*</span>
+              </label>
+              <Input
+                id="settings-custom-url"
+                value={modelConfig.customBaseUrl ?? ''}
+                onChange={(e) =>
+                  setModelConfig((m) => ({ ...m, customBaseUrl: e.target.value }))
+                }
+                className="font-mono"
+                placeholder="https://api.example.com/v1"
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <label htmlFor="settings-custom-compat" className="text-sm font-medium">
+              {t('wizard.model.compatibility')}
+            </label>
+            <Select
+              value={modelConfig.customCompatibility ?? 'openai'}
+              onValueChange={(v) =>
+                setModelConfig((m) => ({
+                  ...m,
+                  customCompatibility: v as 'openai' | 'anthropic',
+                }))
+              }
+            >
+              <SelectTrigger id="settings-custom-compat" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="openai">{t('wizard.model.openaiCompatible')}</SelectItem>
+                <SelectItem value="anthropic">{t('wizard.model.anthropicCompatible')}</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </fieldset>
+      )}
 
       {modelConfig.provider === 'moonshot' && (
         <fieldset className="space-y-1.5">
@@ -620,62 +705,6 @@ export function ModelSettingsSection() {
             autoComplete="off"
           />
           <p className="text-xs text-muted-foreground">{t('wizard.model.endpointUrlHint')}</p>
-        </fieldset>
-      )}
-
-      {modelConfig.provider === 'custom' && (
-        <fieldset className="space-y-3">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <label htmlFor="settings-custom-pid" className="text-sm font-medium">
-                {t('wizard.model.providerId')} <span className="text-destructive">*</span>
-              </label>
-              <Input
-                id="settings-custom-pid"
-                value={modelConfig.customProviderId ?? ''}
-                onChange={(e) =>
-                  setModelConfig((m) => ({ ...m, customProviderId: e.target.value }))
-                }
-                className="font-mono"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <label htmlFor="settings-custom-url" className="text-sm font-medium">
-                {t('wizard.model.apiBaseUrl')} <span className="text-destructive">*</span>
-              </label>
-              <Input
-                id="settings-custom-url"
-                value={modelConfig.customBaseUrl ?? ''}
-                onChange={(e) =>
-                  setModelConfig((m) => ({ ...m, customBaseUrl: e.target.value }))
-                }
-                className="font-mono"
-                placeholder="https://"
-              />
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <label htmlFor="settings-custom-compat" className="text-sm font-medium">
-              {t('wizard.model.compatibility')}
-            </label>
-            <Select
-              value={modelConfig.customCompatibility ?? 'openai'}
-              onValueChange={(v) =>
-                setModelConfig((m) => ({
-                  ...m,
-                  customCompatibility: v as 'openai' | 'anthropic',
-                }))
-              }
-            >
-              <SelectTrigger id="settings-custom-compat" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="openai">{t('wizard.model.openaiCompatible')}</SelectItem>
-                <SelectItem value="anthropic">{t('wizard.model.anthropicCompatible')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
         </fieldset>
       )}
 

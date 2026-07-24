@@ -36,17 +36,30 @@ function gatewayStatusLabel(strings: TrayMenuStrings, status: GatewayStatusValue
 
 function resolveTrayIconPath(): string | null {
   const installDir = getInstallDir()
-  const exePath = app.getPath('exe')
-  const candidates = [
-    path.join(installDir, 'resources', 'apple-touch-icon.png'),
-    path.join(installDir, 'resources', 'tray-icon.png'),
-    path.join(installDir, 'resources', 'icon.ico'),
-    path.join(installDir, 'build', 'tray-icon.png'),
-    path.join(installDir, 'build', 'icon.ico'),
-    exePath,
-    path.join(path.dirname(app.getPath('exe')), 'resources', 'tray-icon.png'),
-    path.join(path.dirname(app.getPath('exe')), 'resources', 'icon.ico'),
-  ]
+  const resourcesPath = process.resourcesPath
+  const exeDir = path.dirname(app.getPath('exe'))
+  // Prefer .ico on Windows so tray/taskbar match the branded OpenClaw asset (PNG can fail silently).
+  const candidates =
+    process.platform === 'win32'
+      ? [
+          path.join(resourcesPath, 'icon.ico'),
+          path.join(installDir, 'resources', 'icon.ico'),
+          path.join(exeDir, 'resources', 'icon.ico'),
+          path.join(resourcesPath, 'tray-icon.png'),
+          path.join(resourcesPath, 'apple-touch-icon.png'),
+          path.join(installDir, 'resources', 'tray-icon.png'),
+          path.join(installDir, 'resources', 'apple-touch-icon.png'),
+        ]
+      : [
+          path.join(resourcesPath, 'apple-touch-icon.png'),
+          path.join(resourcesPath, 'tray-icon.png'),
+          path.join(resourcesPath, 'icon.ico'),
+          path.join(installDir, 'resources', 'apple-touch-icon.png'),
+          path.join(installDir, 'resources', 'tray-icon.png'),
+          path.join(installDir, 'resources', 'icon.ico'),
+          path.join(exeDir, 'resources', 'tray-icon.png'),
+          path.join(exeDir, 'resources', 'icon.ico'),
+        ]
   for (const candidate of candidates) {
     if (fs.existsSync(candidate)) {
       return candidate

@@ -2,6 +2,24 @@
 
 All notable changes to OpenClaw Desktop Plus will be documented in this file.
 
+## [Unreleased]
+
+## [0.8.1] - 2026-07-24
+
+### Added
+
+- **ClawHub (local gateway):** Skills panel search/install via `openclaw skills search|install`; remote mode blocks local install and deep-links to Control UI Skills.
+- **Control UI shortcuts:** Tasks, Automations, MCP from Dashboard, Skills, and the floating Control UI toolbar (local + remote deep-links with token preserved).
+- **Docs:** Rewrote [README](README.md); added [docs/USER_GUIDE.md](docs/USER_GUIDE.md); removed outdated Chinese UI screenshots from the previous fork.
+
+### Fixed
+
+- **Model refs:** Qualify primary/fallbacks on set-default paths; avoid double `provider/provider/id` when catalog ids are already qualified; custom endpoint restores previous primary before gateway restart.
+- **WhatsApp QR:** Native Channels QR with auto `loginWait` refresh loop.
+- **Custom providers:** Upsert models by id instead of wiping sibling catalog entries.
+- **Control UI shortcuts:** Use real Control UI routes (`/automation`, `/settings/mcp`); preserve remote `controlUi` base path when deep-linking.
+- **Release CI:** Publish/upload globs match `OpenClaw-Desktop-Plus-Setup-*.exe` (was still looking for legacy `OpenClaw-Setup-*.exe`).
+
 ## [0.8.0] - 2026-07-24
 
 ### Changed

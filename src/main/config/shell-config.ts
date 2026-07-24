@@ -37,7 +37,7 @@ function getShellConfigPath(): string {
 /** Default shell config */
 export function getDefaultShellConfig(): ShellConfig {
   return {
-    closeToTray: true,
+    closeToTray: false,
     autoStart: false,
     theme: 'system',
     lastGatewayPort: DEFAULT_GATEWAY_PORT,

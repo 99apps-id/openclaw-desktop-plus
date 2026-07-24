@@ -17,6 +17,7 @@ import { runConfigValidate, readOpenClawConfig } from '../config/index.js'
 import { getUserDataDir } from '../utils/paths.js'
 import path from 'node:path'
 import { addProfileToAuthOrder } from '../providers/provider-config.js'
+import { bareModelId, resolvePrimaryModelRef, toPrimaryModelRef } from '../models/model-ref.js'
 
 export interface WizardCompleteResult {
   ok: boolean
@@ -287,15 +288,41 @@ export const API_KEY_PROVIDER_SET = new Set<ModelProvider>([
 ])
 
 function buildDefaultProviderModel(modelId: string): Record<string, unknown> & { id: string; name: string } {
+  const id = bareModelId(modelId) || modelId.trim() || 'default'
   return {
-    id: modelId,
-    name: modelId,
+    id,
+    name: id,
     reasoning: false,
     input: ['text'],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow: 128000,
     maxTokens: 8192,
   }
+}
+
+/** Upsert one model into `models.providers.*.models` without wiping siblings. */
+function upsertProviderModels(
+  existing: unknown,
+  modelId: string,
+): Array<Record<string, unknown> & { id: string; name: string }> {
+  const next = buildDefaultProviderModel(modelId)
+  const list: Array<Record<string, unknown> & { id: string; name: string }> = []
+  if (Array.isArray(existing)) {
+    for (const m of existing) {
+      if (!m || typeof m !== 'object') continue
+      const id = typeof (m as { id?: unknown }).id === 'string' ? (m as { id: string }).id.trim() : ''
+      if (!id) continue
+      list.push(m as Record<string, unknown> & { id: string; name: string })
+    }
+  }
+  const idx = list.findIndex((m) => m.id === next.id)
+  if (idx >= 0) {
+    const prev = list[idx]!
+    const prevName = typeof prev.name === 'string' && prev.name.trim() ? prev.name : next.name
+    list[idx] = { ...prev, ...next, id: next.id, name: prevName }
+    return list
+  }
+  return [...list, next]
 }
 
 function buildMoonshotProvider(baseUrl: string): ModelProviderConfig {
@@ -327,7 +354,7 @@ function ensureProviderSeedConfig(config: OpenClawConfig, state: WizardState): v
     const gatewayId = state.modelConfig.cloudflareGatewayId?.trim()
     const modelId = state.modelConfig.modelId.trim()
     if (!accountId || !gatewayId || !modelId) return
-    const modelRef = `cloudflare-ai-gateway/${modelId}`
+    const modelRef = toPrimaryModelRef('cloudflare-ai-gateway', modelId)
     config.agents = config.agents ?? {}
     config.agents.defaults = config.agents.defaults ?? {}
     config.agents.defaults.models = {
@@ -354,13 +381,14 @@ function ensureProviderSeedConfig(config: OpenClawConfig, state: WizardState): v
   const modelId = state.modelConfig.modelId.trim()
   if (!modelId) return
 
-  const modelRef = `${seed.providerId}/${modelId}`
+  const bareId = bareModelId(modelId) || modelId
+  const modelRef = toPrimaryModelRef(seed.providerId, bareId)
   config.agents = config.agents ?? {}
   config.agents.defaults = config.agents.defaults ?? {}
   config.agents.defaults.models = {
     ...(config.agents.defaults.models ?? {}),
     [modelRef]: {
-      alias: modelId,
+      alias: bareId,
     },
   }
 
@@ -456,9 +484,9 @@ function buildOpenClawConfig(state: WizardState): OpenClawConfig {
       : rawProvider === 'moonshot-cn'
         ? 'moonshot'
         : rawProvider
-  const modelRef = `${providerId}/${modelId}`
+  const modelRef = toPrimaryModelRef(providerId, modelId)
   /** MiniMax onboard-style configs use bare model id (matches working openclaw.json); other providers use provider/model. */
-  const primaryModelRef = providerId === 'minimax' ? modelId : modelRef
+  const primaryModelRef = modelRef
   const config: OpenClawConfig = {
     gateway: {
       mode: 'local',
@@ -535,13 +563,14 @@ function buildOpenClawConfig(state: WizardState): OpenClawConfig {
     if (baseUrl) {
       const thirdPartyAnthropic =
         compatibility === 'anthropic' && !baseUrl.includes('api.anthropic.com')
-      const customModelRef = `${providerId}/${modelId}`
+      const bareId = bareModelId(modelId) || modelId
+      const customModelRef = toPrimaryModelRef(providerId, bareId)
       config.agents = config.agents ?? {}
       config.agents.defaults = config.agents.defaults ?? {}
       config.agents.defaults.models = {
         ...(config.agents.defaults.models ?? {}),
         [customModelRef]: {
-          alias: modelId,
+          alias: bareId,
         },
       }
       config.models = {
@@ -552,7 +581,7 @@ function buildOpenClawConfig(state: WizardState): OpenClawConfig {
             api,
             apiKey: state.modelConfig.apiKey.trim(),
             ...(thirdPartyAnthropic ? { authHeader: true } : {}),
-            models: [buildDefaultProviderModel(modelId || 'default')],
+            models: [buildDefaultProviderModel(bareId || 'default')],
           },
         },
       }
@@ -704,8 +733,8 @@ export function mergeModelIntoOpenClawConfig(
         ? 'moonshot'
         : rawProvider
 
-  const modelRef = `${providerId}/${modelId}`
-  const primaryModelRef = providerId === 'minimax' ? modelId : modelRef
+  const modelRef = toPrimaryModelRef(providerId, modelId)
+  const primaryModelRef = modelRef
 
   let config = JSON.parse(JSON.stringify(base)) as OpenClawConfig
 
@@ -716,13 +745,14 @@ export function mergeModelIntoOpenClawConfig(
     if (baseUrl) {
       const thirdPartyAnthropic =
         compatibility === 'anthropic' && !baseUrl.includes('api.anthropic.com')
-      const customModelRef = `${providerId}/${modelId}`
+      const bareId = bareModelId(modelId) || modelId
+      const customModelRef = toPrimaryModelRef(providerId, bareId)
       config.agents = config.agents ?? {}
       config.agents.defaults = config.agents.defaults ?? {}
       config.agents.defaults.models = {
         ...(config.agents.defaults.models ?? {}),
         [customModelRef]: {
-          alias: modelId,
+          alias: bareId,
         },
       }
       config.models = config.models ?? {}
@@ -736,7 +766,7 @@ export function mergeModelIntoOpenClawConfig(
         api,
         ...(apiKeyTrim ? { apiKey: apiKeyTrim } : {}),
         ...(thirdPartyAnthropic ? { authHeader: true } : {}),
-        models: [buildDefaultProviderModel(modelId || 'default')],
+        models: upsertProviderModels(existingCustom.models, bareId || 'default'),
       }
     }
   } else {
@@ -766,7 +796,7 @@ export function mergeModelIntoOpenClawConfig(
         ? (existingModel as { fallbacks: string[] }).fallbacks
         : undefined
     config.agents.defaults.model = {
-      primary: primaryModelRef,
+      primary: resolvePrimaryModelRef(config, primaryModelRef),
       ...(Array.isArray(fallbacks) && fallbacks.length ? { fallbacks } : {}),
     }
   } else {
@@ -782,7 +812,7 @@ export function mergeModelIntoOpenClawConfig(
       throw new Error(`Agent not found: ${target.agentId}`)
     }
     const prev = list[idx] as Record<string, unknown>
-    list[idx] = { ...prev, model: primaryModelRef }
+    list[idx] = { ...prev, model: resolvePrimaryModelRef(config, primaryModelRef) }
     config.agents = { ...agents, list: list as AgentListEntry[] }
   }
 

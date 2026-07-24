@@ -50,6 +50,7 @@ function runPluginsCli(args: string[]): Promise<{ exitCode: number; stdout: stri
       cwd: getBundledOpenClawDir(),
       env,
       stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
     })
 
     let stdout = ''

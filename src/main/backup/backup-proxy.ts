@@ -80,6 +80,7 @@ function runBackupCli(args: string[]): Promise<{ exitCode: number; stdout: strin
       cwd: getBundledOpenClawDir(),
       env,
       stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
     })
 
     let stdout = ''

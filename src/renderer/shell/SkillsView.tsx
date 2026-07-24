@@ -15,6 +15,10 @@ import {
   Package,
   Filter,
   FileText,
+  ExternalLink,
+  ListTodo,
+  Timer,
+  Server,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -26,6 +30,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { ShellLayout } from './ShellLayout'
+import { isGatewayRemoteMode } from '../../shared/gateway-remote'
 import type {
   SkillRegistryItem,
   ExtensionRegistryItem,
@@ -34,6 +39,8 @@ import type {
 
 export interface SkillsViewProps {
   onBack?: () => void
+  /** Deep-link into Control UI (local or remote). */
+  onOpenControlUi?: (path?: string) => void
 }
 
 type TabType = 'skills' | 'extensions'
@@ -61,7 +68,7 @@ function isExtension(item: SkillRegistryItem | ExtensionRegistryItem): item is E
   return 'providers' in item || 'tools' in item || 'commands' in item
 }
 
-export function SkillsView({ onBack }: SkillsViewProps) {
+export function SkillsView({ onBack, onOpenControlUi }: SkillsViewProps) {
   const { t } = useTranslation()
   const [tab, setTab] = useState<TabType>('skills')
   const [skills, setSkills] = useState<SkillRegistryItem[]>([])
@@ -77,21 +84,39 @@ export function SkillsView({ onBack }: SkillsViewProps) {
   const [actionFeedback, setActionFeedback] = useState<{ id: string; message: string; type: 'success' | 'error' } | null>(null)
   const [pluginSpec, setPluginSpec] = useState('')
   const [installing, setInstalling] = useState(false)
+  const [gatewayMode, setGatewayMode] = useState<'local' | 'remote'>('local')
+  const [gatewayReady, setGatewayReady] = useState(false)
+  const [clawhubQuery, setClawhubQuery] = useState('')
+  const [clawhubSearching, setClawhubSearching] = useState(false)
+  const [clawhubInstallingSlug, setClawhubInstallingSlug] = useState<string | null>(null)
+  const [clawhubHits, setClawhubHits] = useState<
+    Array<{ slug: string; name?: string; description?: string; score?: number; owner?: string }>
+  >([])
+  const [clawhubError, setClawhubError] = useState<string | null>(null)
 
   const tabSkillsLabel = t('shell.skillsPanel.tabSkills')
   const tabExtensionsLabel = t('shell.skillsPanel.tabExtensions')
   const currentTabLabel = tab === 'skills' ? tabSkillsLabel : tabExtensionsLabel
+  const isRemoteGateway = gatewayMode === 'remote'
 
   const loadData = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const [skillsData, extensionsData] = await Promise.all([
+      const [skillsData, extensionsData, gw, cfg] = await Promise.all([
         window.electronAPI.skillsList(),
         window.electronAPI.extensionsList(),
+        window.electronAPI.gatewayStatus().catch(() => null),
+        window.electronAPI.configRead().catch(() => null),
       ])
       setSkills(skillsData)
       setExtensions(extensionsData)
+      if (gw?.mode != null) {
+        setGatewayMode(gw.mode === 'remote' ? 'remote' : 'local')
+      } else {
+        setGatewayMode(isGatewayRemoteMode(cfg?.gateway) ? 'remote' : 'local')
+      }
+      setGatewayReady(Boolean(gw?.running && gw.status === 'running'))
     } catch (e) {
       setError(e instanceof Error ? e.message : t('shell.skillsPanel.loadFailed'))
     } finally {
@@ -213,6 +238,54 @@ export function SkillsView({ onBack }: SkillsViewProps) {
       showFeedback(spec, e instanceof Error ? e.message : t('shell.skillsPanel.installFailed'), 'error')
     } finally {
       setInstalling(false)
+    }
+  }
+
+  const openControlUi = (path: string) => {
+    onOpenControlUi?.(path)
+  }
+
+  const handleClawhubSearch = async () => {
+    const q = clawhubQuery.trim()
+    if (!q || isRemoteGateway) return
+    setClawhubSearching(true)
+    setClawhubError(null)
+    try {
+      const res = await window.electronAPI.clawhubSearch({ query: q, limit: 12 })
+      if (!res.ok) {
+        setClawhubHits([])
+        setClawhubError(res.message ?? t('shell.skillsPanel.clawhubSearchFailed'))
+        return
+      }
+      setClawhubHits(res.results)
+      if (res.results.length === 0) {
+        setClawhubError(t('shell.skillsPanel.clawhubEmpty'))
+      }
+    } catch (e) {
+      setClawhubHits([])
+      setClawhubError(e instanceof Error ? e.message : t('shell.skillsPanel.clawhubSearchFailed'))
+    } finally {
+      setClawhubSearching(false)
+    }
+  }
+
+  const handleClawhubInstall = async (slug: string) => {
+    if (!slug || isRemoteGateway) return
+    setClawhubInstallingSlug(slug)
+    setClawhubError(null)
+    try {
+      const res = await window.electronAPI.clawhubInstall({ skillRef: slug })
+      if (res.ok) {
+        showFeedback(slug, t('shell.skillsPanel.clawhubInstallOk', { name: res.slug ?? slug }), 'success')
+        await window.electronAPI.registryReload()
+        await loadData()
+      } else {
+        showFeedback(slug, res.message ?? t('shell.skillsPanel.clawhubInstallFailed'), 'error')
+      }
+    } catch (e) {
+      showFeedback(slug, e instanceof Error ? e.message : t('shell.skillsPanel.clawhubInstallFailed'), 'error')
+    } finally {
+      setClawhubInstallingSlug(null)
     }
   }
 
@@ -462,6 +535,159 @@ export function SkillsView({ onBack }: SkillsViewProps) {
         <div className="rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-xs text-muted-foreground leading-relaxed">
           {t('shell.skillsPanel.stripNotice')}
         </div>
+
+        <section className="rounded-lg border border-border p-3 space-y-2" aria-label={t('shell.skillsPanel.controlUiShortcutsTitle')}>
+          <p className="text-sm font-medium">{t('shell.skillsPanel.controlUiShortcutsTitle')}</p>
+          <p className="text-xs text-muted-foreground">{t('shell.skillsPanel.controlUiShortcutsDesc')}</p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              disabled={!onOpenControlUi || !gatewayReady}
+              onClick={() => openControlUi('/tasks')}
+              title={!gatewayReady ? t('shell.dashboard.gatewayNotReady') : undefined}
+            >
+              <ListTodo className="w-3.5 h-3.5 mr-1" />
+              {t('shell.skillsPanel.shortcutTasks')}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              disabled={!onOpenControlUi || !gatewayReady}
+              onClick={() => openControlUi('/automation')}
+              title={!gatewayReady ? t('shell.dashboard.gatewayNotReady') : undefined}
+            >
+              <Timer className="w-3.5 h-3.5 mr-1" />
+              {t('shell.skillsPanel.shortcutAutomations')}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              disabled={!onOpenControlUi || !gatewayReady}
+              onClick={() => openControlUi('/settings/mcp')}
+              title={!gatewayReady ? t('shell.dashboard.gatewayNotReady') : undefined}
+            >
+              <Server className="w-3.5 h-3.5 mr-1" />
+              {t('shell.skillsPanel.shortcutMcp')}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              disabled={!onOpenControlUi || !gatewayReady}
+              onClick={() => openControlUi('/skills')}
+              title={!gatewayReady ? t('shell.dashboard.gatewayNotReady') : undefined}
+            >
+              <Puzzle className="w-3.5 h-3.5 mr-1" />
+              {t('shell.skillsPanel.shortcutSkills')}
+            </Button>
+          </div>
+        </section>
+
+        <section className="rounded-lg border border-border p-3 space-y-2" aria-label={t('shell.skillsPanel.clawhubTitle')}>
+          <p className="text-sm font-medium">{t('shell.skillsPanel.clawhubTitle')}</p>
+          {isRemoteGateway ? (
+            <>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {t('shell.skillsPanel.clawhubRemoteDesc')}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={!onOpenControlUi || !gatewayReady}
+                  onClick={() => openControlUi('/skills')}
+                >
+                  <ExternalLink className="w-3.5 h-3.5 mr-1" />
+                  {t('shell.skillsPanel.clawhubOpenControlUi')}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void window.electronAPI.systemOpenExternal('https://clawhub.ai')}
+                >
+                  {t('shell.skillsPanel.clawhubOpenBrowse')}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground">{t('shell.skillsPanel.clawhubDesc')}</p>
+              <div className="flex gap-2">
+                <Input
+                  value={clawhubQuery}
+                  onChange={(e) => setClawhubQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      void handleClawhubSearch()
+                    }
+                  }}
+                  placeholder={t('shell.skillsPanel.clawhubSearchPlaceholder')}
+                  className="text-xs"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => void handleClawhubSearch()}
+                  disabled={clawhubSearching || !clawhubQuery.trim()}
+                >
+                  {clawhubSearching ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Search className="w-3.5 h-3.5" />
+                  )}
+                  <span className="ml-1">
+                    {clawhubSearching
+                      ? t('shell.skillsPanel.clawhubSearching')
+                      : t('shell.skillsPanel.clawhubSearch')}
+                  </span>
+                </Button>
+              </div>
+              {clawhubError ? (
+                <p className="text-xs text-muted-foreground" role="status">
+                  {clawhubError}
+                </p>
+              ) : null}
+              {clawhubHits.length > 0 ? (
+                <ul className="divide-y divide-border rounded-md border border-border max-h-56 overflow-y-auto">
+                  {clawhubHits.map((hit) => (
+                    <li key={hit.slug} className="flex items-start justify-between gap-2 px-3 py-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{hit.name ?? hit.slug}</p>
+                        <p className="text-[11px] font-mono text-muted-foreground truncate">{hit.slug}</p>
+                        {hit.description ? (
+                          <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{hit.description}</p>
+                        ) : null}
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        className="shrink-0"
+                        disabled={clawhubInstallingSlug !== null}
+                        onClick={() => void handleClawhubInstall(hit.slug)}
+                      >
+                        {clawhubInstallingSlug === hit.slug ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : null}
+                        <span className={clawhubInstallingSlug === hit.slug ? 'ml-1' : ''}>
+                          {clawhubInstallingSlug === hit.slug
+                            ? t('shell.skillsPanel.clawhubInstalling')
+                            : t('shell.skillsPanel.clawhubInstall')}
+                        </span>
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </>
+          )}
+        </section>
 
         <section className="rounded-lg border border-border p-3 space-y-2">
           <p className="text-sm font-medium">{t('shell.skillsPanel.installTitle')}</p>

@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Git tag to publish (must already exist). Must equal v + package.json version, e.g. v0.8.0+openclaw.2026.7.1-2. Required: the workflow checks out this tag before building. Leaving it empty uses the current branch and can mix shell / OpenClaw / Control UI (black screen).'
+        description: 'Git tag to publish (must already exist). Must equal v + package.json version, e.g. v0.8.1+openclaw.2026.7.1-2. Required: the workflow checks out this tag before building. Leaving it empty uses the current branch and can mix shell / OpenClaw / Control UI (black screen).'
         required: true
         type: string
 
@@ -285,7 +285,7 @@ jobs:
         with:
           name: openclaw-desktop-build
           path: |
-            dist/OpenClaw-Setup-*.exe
+            dist/OpenClaw-Desktop-Plus-Setup-*.exe
             dist/bundle-manifest.json
 
   sign_path:
@@ -384,7 +384,7 @@ jobs:
       - name: Generate SHA-256 checksums
         run: |
           cd dist
-          for file in OpenClaw-Setup-*.exe; do
+          for file in OpenClaw-Desktop-Plus-Setup-*.exe; do
             [ -f "$file" ] || continue
             sha256sum "$file" > "$file.sha256"
           done
@@ -399,9 +399,9 @@ jobs:
           else
             CHANNEL=stable
           fi
-          EXE=$(find dist -name "OpenClaw-Setup-*.exe" -type f | head -1)
+          EXE=$(find dist -name "OpenClaw-Desktop-Plus-Setup-*.exe" -type f | head -1)
           if [ -z "$EXE" ]; then
-            echo "error: no OpenClaw-Setup-*.exe found in dist"
+            echo "error: no OpenClaw-Desktop-Plus-Setup-*.exe found in dist"
             exit 1
           fi
           MANIFEST_ARG=""
@@ -421,8 +421,8 @@ jobs:
           tag_name: ${{ inputs.tag || github.ref_name }}
           name: ${{ inputs.tag || github.ref_name }}
           files: |
-            dist/OpenClaw-Setup-*.exe
-            dist/OpenClaw-Setup-*.exe.sha256
+            dist/OpenClaw-Desktop-Plus-Setup-*.exe
+            dist/OpenClaw-Desktop-Plus-Setup-*.exe.sha256
             ${{ steps.gen-yml.outputs.yml_file }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

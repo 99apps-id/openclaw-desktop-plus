@@ -350,9 +350,26 @@ async function main(): Promise<void> {
   }
 
   // Verify key directories exist
-  const requiredPaths = ['openclaw.mjs', 'dist', 'node_modules']
+  const requiredPaths = [
+    'openclaw.mjs',
+    'dist',
+    'node_modules',
+    // HEARTBEAT.md loadTemplate() only searches src/agents/templates (not docs/)
+    join('src', 'agents', 'templates', 'HEARTBEAT.md'),
+  ]
   for (const p of requiredPaths) {
     if (!(await fileExists(join(OPENCLAW_DIR, p)))) {
+      // Older tarballs / incomplete packs: mirror docs templates into the required path.
+      if (String(p).includes('HEARTBEAT.md')) {
+        const docsTpl = join(OPENCLAW_DIR, 'docs', 'reference', 'templates')
+        const destTpl = join(OPENCLAW_DIR, 'src', 'agents', 'templates')
+        if (await fileExists(join(docsTpl, 'HEARTBEAT.md'))) {
+          await mkdir(destTpl, { recursive: true })
+          await cp(docsTpl, destTpl, { recursive: true, force: true })
+          console.log('  [templates] mirrored docs/reference/templates → src/agents/templates')
+          continue
+        }
+      }
       throw new Error(`Required path missing after install: ${p}`)
     }
   }

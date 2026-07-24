@@ -107,6 +107,12 @@ export const IPC_SKILLS_TOGGLE = 'skills:toggle' as const
 /** Skills rescan/reload */
 export const IPC_SKILLS_RELOAD = 'skills:reload' as const
 
+/** Skills: search ClawHub (local gateway only) */
+export const IPC_CLAWHUB_SEARCH = 'clawhub:search' as const
+
+/** Skills: install from ClawHub (local gateway only) */
+export const IPC_CLAWHUB_INSTALL = 'clawhub:install' as const
+
 /** Extensions list */
 export const IPC_EXTENSIONS_LIST = 'extensions:list' as const
 
@@ -166,6 +172,15 @@ export const IPC_MODELS_SET_ALIASES = 'models:setAliases' as const
 
 /** Models: auth login (OAuth / API key via bundled CLI) */
 export const IPC_MODELS_AUTH_LOGIN = 'models:authLogin' as const
+
+/** WhatsApp: start QR login (gateway web.login.start) */
+export const IPC_WHATSAPP_LOGIN_START = 'whatsapp:loginStart' as const
+
+/** WhatsApp: wait for QR scan (gateway web.login.wait) */
+export const IPC_WHATSAPP_LOGIN_WAIT = 'whatsapp:loginWait' as const
+
+/** WhatsApp: logout / clear session */
+export const IPC_WHATSAPP_LOGOUT = 'whatsapp:logout' as const
 
 /** Apply gateway.mode + gateway.remote and reconnect (local start or remote attach) */
 export const IPC_GATEWAY_APPLY_CONNECTION = 'gateway:applyConnection' as const
@@ -259,6 +274,8 @@ export const IPC_INVOKE_CHANNELS = [
   IPC_SKILLS_LIST,
   IPC_SKILLS_TOGGLE,
   IPC_SKILLS_RELOAD,
+  IPC_CLAWHUB_SEARCH,
+  IPC_CLAWHUB_INSTALL,
   IPC_EXTENSIONS_LIST,
   IPC_EXTENSIONS_TOGGLE,
   IPC_REGISTRY_RELOAD,
@@ -279,6 +296,9 @@ export const IPC_INVOKE_CHANNELS = [
   IPC_MODELS_SET_FALLBACKS,
   IPC_MODELS_SET_ALIASES,
   IPC_MODELS_AUTH_LOGIN,
+  IPC_WHATSAPP_LOGIN_START,
+  IPC_WHATSAPP_LOGIN_WAIT,
+  IPC_WHATSAPP_LOGOUT,
   IPC_GATEWAY_APPLY_CONNECTION,
   IPC_PLUGINS_LIST,
   IPC_PLUGINS_TOGGLE,

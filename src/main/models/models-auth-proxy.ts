@@ -92,7 +92,7 @@ export async function modelsAuthLogin(
       cwd: getBundledOpenClawDir(),
       env: buildCliEnv(),
       stdio: ['ignore', 'pipe', 'pipe'],
-      windowsHide: false,
+      windowsHide: true,
     })
 
     let stdout = ''

@@ -136,9 +136,9 @@ module.exports = {
     target: [{ target: 'nsis', arch: ['x64'] }],
     icon: iconIcoPath,
     artifactName: 'OpenClaw-Desktop-Plus-Setup-${version}.${ext}',
-    // true = rcedit embeds icon; false skips rcedit (no winCodeSign fetch) — icon missing
+    // true = rcedit embeds OpenClaw icon into the .exe (required — otherwise Electron default icon shows)
     // Without CSC_LINK only resource edit runs, not signing
-    // SKIP_EXE_RESOURCE_EDIT=1 skips edit when mirrors are unreachable
+    // SKIP_EXE_RESOURCE_EDIT=1 skips edit when winCodeSign/rcedit mirrors are unreachable (leaves Electron icon)
     signAndEditExecutable: process.env.SKIP_EXE_RESOURCE_EDIT !== '1',
     // Signing: CSC_LINK + CSC_KEY_PASSWORD (or WIN_* variants)
     forceCodeSigning: false, // Allow unsigned builds without a cert

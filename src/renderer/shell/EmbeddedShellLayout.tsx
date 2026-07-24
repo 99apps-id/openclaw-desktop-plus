@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Settings, Info, Key, Puzzle, RefreshCw, LayoutDashboard, Cpu, Radio, ChevronLeft, Paperclip } from 'lucide-react'
+import { Settings, Info, Key, Puzzle, RefreshCw, LayoutDashboard, Cpu, Radio, ChevronLeft, Paperclip, ListTodo, Timer, Server } from 'lucide-react'
 import { LoadingView } from './LoadingView'
 import { ErrorView, type ErrorType } from './ErrorView'
 import { SettingsView } from './SettingsView'
@@ -91,6 +91,9 @@ export function EmbeddedShellLayout({ activePanel, onPanelChange }: EmbeddedShel
   const [attachBanner, setAttachBanner] = useState<string | null>(null)
   const controlUiPathRef = useRef('')
   const gatewayAuthTokenRef = useRef<string | undefined>(undefined)
+  const gatewayModeRef = useRef<'local' | 'remote'>('local')
+  /** Remote Control UI origin + optional basePath (from gateway status), without SPA deep-link. */
+  const remoteControlUiBaseRef = useRef<string | null>(null)
   const prevGatewayStatusRef = useRef<GatewayStatusValue | null>(null)
   const lastRunningPidRef = useRef<number | null>(null)
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -143,6 +146,14 @@ export function EmbeddedShellLayout({ activePanel, onPanelChange }: EmbeddedShel
         }
 
         setGatewayPort(status.port)
+        gatewayModeRef.current = status.mode === 'remote' ? 'remote' : 'local'
+        if (status.mode === 'remote' && status.controlUrl) {
+          remoteControlUiBaseRef.current = status.controlUrl
+            .replace(/#.*$/, '')
+            .replace(/\/$/, '')
+        } else {
+          remoteControlUiBaseRef.current = null
+        }
         void (async () => {
           const port = status.port
           try {
@@ -165,18 +176,24 @@ export function EmbeddedShellLayout({ activePanel, onPanelChange }: EmbeddedShel
                   ? localToken
                   : undefined) || undefined
             gatewayAuthTokenRef.current = token
+            const deepPath = controlUiPathRef.current
             const url =
               status.mode === 'remote' && status.controlUrl
-                ? appendTokenHash(
-                    status.controlUrl.replace(/\/$/, '') +
-                      (controlUiPathRef.current
-                        ? controlUiPathRef.current.startsWith('/')
-                          ? controlUiPathRef.current
-                          : `/${controlUiPathRef.current}`
-                        : ''),
-                    gatewayAuthTokenRef.current,
-                  )
-                : buildControlUIUrl(port, gatewayAuthTokenRef.current, controlUiPathRef.current)
+                ? (() => {
+                    // Keep origin + optional controlUi basePath; do not strip to bare origin.
+                    const base =
+                      remoteControlUiBaseRef.current ??
+                      status.controlUrl!.replace(/#.*$/, '').replace(/\/$/, '')
+                    const withPath =
+                      base +
+                      (deepPath
+                        ? deepPath.startsWith('/')
+                          ? deepPath
+                          : `/${deepPath}`
+                        : '')
+                    return appendTokenHash(withPath, gatewayAuthTokenRef.current)
+                  })()
+                : buildControlUIUrl(port, gatewayAuthTokenRef.current, deepPath)
             setControlUiLoadError(false)
             if (shouldReloadControlUi) {
               setControlUiReloadKey((k) => k + 1)
@@ -298,19 +315,29 @@ export function EmbeddedShellLayout({ activePanel, onPanelChange }: EmbeddedShel
   }
 
   const reloadControlUi = useCallback((path?: string) => {
-    if (gatewayPort == null && !controlUrl) return
     if (path !== undefined) {
       controlUiPathRef.current = path
     }
+    // Remember deep-link even while Gateway is restarting (port temporarily null).
+    // When status returns to running, handleStatusUpdate rebuilds controlUrl with this path.
+    if (gatewayPort == null && !controlUrl) {
+      setControlUiLoadError(false)
+      onPanelChange('')
+      return
+    }
     setControlUiLoadError(false)
-    if (controlUrl?.startsWith('http') && !controlUrl.includes('127.0.0.1')) {
-      const origin = controlUrl.replace(/#.*$/, '').replace(/\/$/, '')
-      const p = controlUiPathRef.current
-      const withPath =
-        origin + (p ? (p.startsWith('/') ? p : `/${p}`) : '')
+    const p = controlUiPathRef.current
+    const isRemote =
+      gatewayModeRef.current === 'remote' ||
+      Boolean(controlUrl && !/127\.0\.0\.1|localhost/i.test(controlUrl))
+    if (isRemote && (remoteControlUiBaseRef.current || controlUrl)) {
+      const base =
+        remoteControlUiBaseRef.current ??
+        controlUrl!.replace(/#.*$/, '').replace(/\/$/, '')
+      const withPath = base + (p ? (p.startsWith('/') ? p : `/${p}`) : '')
       setControlUrl(appendTokenHash(withPath, gatewayAuthTokenRef.current))
     } else if (gatewayPort != null) {
-      setControlUrl(buildControlUIUrl(gatewayPort, gatewayAuthTokenRef.current, controlUiPathRef.current))
+      setControlUrl(buildControlUIUrl(gatewayPort, gatewayAuthTokenRef.current, p))
     }
     setControlUiReloadKey((k) => k + 1)
     onPanelChange('')
@@ -368,6 +395,7 @@ export function EmbeddedShellLayout({ activePanel, onPanelChange }: EmbeddedShel
             onOpenFeishuSettings={() => onPanelChange('feishu-settings')}
             onOpenModels={() => onPanelChange('models')}
             onOpenChannels={() => onPanelChange('channels')}
+            onOpenMobileConnect={() => reloadControlUi('/nodes')}
           />
         )
       case 'about':
@@ -382,6 +410,7 @@ export function EmbeddedShellLayout({ activePanel, onPanelChange }: EmbeddedShel
             onNavigateToFeishuSettings={() => handleNavigateToPanel('feishu-settings')}
             onNavigateToModels={() => handleNavigateToPanel('models')}
             onNavigateToChannels={() => handleNavigateToPanel('channels')}
+            onOpenControlUi={(path) => reloadControlUi(path ?? '')}
             updateAvailable={updateAvailable && !updateDismissed}
             updateVersion={updateInfo?.version}
             onDismissUpdateNotice={() => dismissUpdateNotice()}
@@ -390,7 +419,12 @@ export function EmbeddedShellLayout({ activePanel, onPanelChange }: EmbeddedShel
       case 'llm-api':
         return <ProviderView onBack={() => onPanelChange('')} />
       case 'skills':
-        return <SkillsView onBack={() => onPanelChange('')} />
+        return (
+          <SkillsView
+            onBack={() => onPanelChange('')}
+            onOpenControlUi={(path) => reloadControlUi(path ?? '')}
+          />
+        )
       case 'updates':
         return (
           <UpdateView
@@ -473,7 +507,7 @@ export function EmbeddedShellLayout({ activePanel, onPanelChange }: EmbeddedShel
       )}
 
       {showControlUIIframe && !hasActivePanel && (
-        <div className="absolute top-3 right-3 z-20 flex items-center gap-2 pointer-events-auto">
+        <div className="absolute top-3 right-3 z-20 flex items-center gap-2 pointer-events-auto flex-wrap justify-end max-w-[min(100vw-1.5rem,42rem)]">
           <QuickModelChip onOpenModels={() => onPanelChange('models')} />
           <button
             type="button"
@@ -485,6 +519,36 @@ export function EmbeddedShellLayout({ activePanel, onPanelChange }: EmbeddedShel
           >
             <Paperclip className="w-3.5 h-3.5" />
             {t('shell.embed.attach')}
+          </button>
+          <button
+            type="button"
+            onClick={() => reloadControlUi('/tasks')}
+            className="rounded-md border border-border bg-background/90 px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur hover:border-primary/50 hover:bg-muted transition-colors inline-flex items-center gap-1"
+            aria-label={t('shell.embed.openTasksTitle')}
+            title={t('shell.embed.openTasksTitle')}
+          >
+            <ListTodo className="w-3.5 h-3.5" />
+            {t('shell.embed.openTasks')}
+          </button>
+          <button
+            type="button"
+            onClick={() => reloadControlUi('/automation')}
+            className="rounded-md border border-border bg-background/90 px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur hover:border-primary/50 hover:bg-muted transition-colors inline-flex items-center gap-1"
+            aria-label={t('shell.embed.openAutomationsTitle')}
+            title={t('shell.embed.openAutomationsTitle')}
+          >
+            <Timer className="w-3.5 h-3.5" />
+            {t('shell.embed.openAutomations')}
+          </button>
+          <button
+            type="button"
+            onClick={() => reloadControlUi('/settings/mcp')}
+            className="rounded-md border border-border bg-background/90 px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur hover:border-primary/50 hover:bg-muted transition-colors inline-flex items-center gap-1"
+            aria-label={t('shell.embed.openMcpTitle')}
+            title={t('shell.embed.openMcpTitle')}
+          >
+            <Server className="w-3.5 h-3.5" />
+            {t('shell.embed.openMcp')}
           </button>
           <button
             type="button"
@@ -513,14 +577,14 @@ export function EmbeddedShellLayout({ activePanel, onPanelChange }: EmbeddedShel
         </div>
       )}
 
-      {/* Desktop panel overlay: flex column + scroll region so flex-1 panels are not height-collapsed */}
+      {/* Desktop panel overlay */}
       {hasActivePanel && (
-        <div className="absolute inset-0 z-30 flex min-h-0 flex-col bg-background">
-          <div className="shrink-0 border-b border-border bg-background/95 px-4 py-2 backdrop-blur-sm flex items-center gap-2">
+        <div className="absolute inset-0 z-30 flex min-h-0 flex-col bg-background/98 supports-[backdrop-filter]:bg-background/92 backdrop-blur-sm">
+          <div className="shrink-0 border-b border-border/60 bg-background/80 px-4 py-2.5 backdrop-blur-md flex items-center gap-2">
             <button
               type="button"
               onClick={() => onPanelChange('')}
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-lg px-2 py-1.5 hover:bg-muted"
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors rounded-lg px-2 py-1.5 hover:bg-muted/80"
               aria-label="Back to Control UI"
             >
               <ChevronLeft className="w-4 h-4" />

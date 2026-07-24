@@ -110,6 +110,7 @@ export async function runConfigValidate(): Promise<ConfigValidationResult> {
       cwd: getBundledOpenClawDir(),
       env,
       stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
     })
 
     let stdout = ''

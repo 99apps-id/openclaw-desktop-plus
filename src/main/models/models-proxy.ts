@@ -35,8 +35,11 @@ function extractModelsFromConfig(config: OpenClawConfig): ModelListItem[] {
     if (!p || typeof p !== 'object') continue
     const models = (p as { models?: Array<{ id: string; name?: string }> }).models ?? []
     for (const m of models) {
-      const id = m.id ?? ''
-      if (!id || seen.has(id)) continue
+      const bareId = m.id ?? ''
+      if (!bareId) continue
+      // Always qualify — bare ids collide across providers and break setDefault.
+      const id = `${providerId}/${bareId}`
+      if (seen.has(id)) continue
       seen.add(id)
       items.push({
         id,
@@ -53,14 +56,21 @@ function extractModelsFromConfig(config: OpenClawConfig): ModelListItem[] {
 
 function mapRpcModels(payload: ModelsListRpcPayload): ModelListItem[] {
   const raw = payload?.models ?? []
+  const seen = new Set<string>()
   return raw
     .map((m) => {
-      const id = m.id ?? m.name ?? ''
-      if (!id) return null
+      const bare = String(m.id ?? m.name ?? '').trim()
+      if (!bare) return null
+      const provider = typeof m.provider === 'string' ? m.provider.trim() : ''
+      // Prefer provider/model so Models panel never writes bare ids as primary.
+      const id =
+        bare.includes('/') || !provider ? bare : `${provider}/${bare}`
+      if (seen.has(id)) return null
+      seen.add(id)
       return {
-        id: String(id),
+        id,
         name: typeof m.name === 'string' ? m.name : undefined,
-        provider: typeof m.provider === 'string' ? m.provider : undefined,
+        provider: provider || undefined,
       } as ModelListItem
     })
     .filter((x): x is ModelListItem => x !== null)

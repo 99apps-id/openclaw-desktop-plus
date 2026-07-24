@@ -171,6 +171,42 @@ async function stripOpenClawExtensionsWithoutDesktopDeps(openclawRoot: string): 
   }
 }
 
+async function ensureOpenClawWorkspaceTemplates(openclawRoot: string): Promise<void> {
+  const destDir = join(openclawRoot, 'src', 'agents', 'templates')
+  const heartbeatDest = join(destDir, 'HEARTBEAT.md')
+  if (await fileExists(heartbeatDest)) {
+    console.log('  [ok] src/agents/templates/HEARTBEAT.md present')
+    return
+  }
+
+  const sourceCandidates = [
+    join(openclawRoot, 'docs', 'reference', 'templates'),
+    join(SRC_OPENCLAW, 'docs', 'reference', 'templates'),
+    join(SRC_OPENCLAW, 'src', 'agents', 'templates'),
+  ]
+  let sourceDir: string | null = null
+  for (const candidate of sourceCandidates) {
+    if (await fileExists(join(candidate, 'HEARTBEAT.md'))) {
+      sourceDir = candidate
+      break
+    }
+  }
+  if (!sourceDir) {
+    throw new Error(
+      'OpenClaw workspace templates missing (HEARTBEAT.md). Expected docs/reference/templates or src/agents/templates in the OpenClaw bundle.',
+    )
+  }
+
+  await mkdir(destDir, { recursive: true })
+  await cp(sourceDir, destDir, { recursive: true, force: true })
+  if (!(await fileExists(heartbeatDest))) {
+    throw new Error(`Failed to materialize workspace template: ${heartbeatDest}`)
+  }
+  console.log(
+    `  [templates] mirrored ${sourceDir.replace(PROJECT_ROOT + '\\', '').replace(PROJECT_ROOT + '/', '')} → src/agents/templates (HEARTBEAT.md required for chat)`,
+  )
+}
+
 async function validateOpenClawDist(rootDir: string): Promise<string[]> {
   const entryPath = join(rootDir, 'dist', 'entry.js')
   const entryAlt = join(rootDir, 'dist', 'entry.mjs')
@@ -278,6 +314,10 @@ async function main(): Promise<void> {
   // so the gateway doesn't crash when the Slack extension was stripped.
   await patchOpenClawStripSlackChannel(DEST_OPENCLAW)
 
+  // OpenClaw loadTemplate("HEARTBEAT.md") only searches src/agents/templates (not docs/).
+  // npm package ships templates under docs/reference/templates — mirror them for packaged Desktop.
+  await ensureOpenClawWorkspaceTemplates(DEST_OPENCLAW)
+
   // --- Validate OpenClaw dist integrity ---
   const missingDist = await validateOpenClawDist(DEST_OPENCLAW)
   if (missingDist.length > 0) {
@@ -292,6 +332,7 @@ async function main(): Promise<void> {
     join(DEST_OPENCLAW, 'dist'),
     join(DEST_OPENCLAW, 'dist', 'control-ui', 'index.html'),
     join(DEST_OPENCLAW, 'node_modules'),
+    join(DEST_OPENCLAW, 'src', 'agents', 'templates', 'HEARTBEAT.md'),
     getOpenClawFeishuSdkPackageJsonPath(DEST_OPENCLAW),
   ]
   for (const p of required) {

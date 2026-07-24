@@ -11,6 +11,9 @@ import {
   Key,
   Download,
   MessageSquare,
+  ListTodo,
+  Timer,
+  Server,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import type { GatewayStatus, GatewayStatusValue, AppVersionInfo } from '../../shared/types'
@@ -38,6 +41,8 @@ export interface DashboardViewProps {
   onNavigateToModels?: () => void
   /** Navigate to Channels manager */
   onNavigateToChannels?: () => void
+  /** Deep-link Control UI (local or remote) */
+  onOpenControlUi?: (path?: string) => void
   /** Whether an update is available */
   updateAvailable?: boolean
   /** Latest version string */
@@ -102,6 +107,7 @@ export function DashboardView({
   onNavigateToFeishuSettings,
   onNavigateToModels,
   onNavigateToChannels,
+  onOpenControlUi,
   updateAvailable,
   updateVersion,
   onDismissUpdateNotice,
@@ -501,6 +507,39 @@ export function DashboardView({
               onClick={onNavigateToLlmApi}
               disabled={!onNavigateToLlmApi}
               comingSoonSuffix={comingSoon}
+              updateAvailableAria={updateAria}
+            />
+            <ActionCard
+              title={t('shell.dashboard.tasks')}
+              description={t('shell.dashboard.tasksDesc')}
+              icon={<ListTodo className="w-5 h-5 text-muted-foreground" aria-hidden />}
+              onClick={() => onOpenControlUi?.('/tasks')}
+              disabled={!onOpenControlUi || gatewayStatus?.status !== 'running'}
+              comingSoonSuffix={
+                gatewayStatus?.status !== 'running' ? t('shell.dashboard.gatewayNotReady') : comingSoon
+              }
+              updateAvailableAria={updateAria}
+            />
+            <ActionCard
+              title={t('shell.dashboard.automations')}
+              description={t('shell.dashboard.automationsDesc')}
+              icon={<Timer className="w-5 h-5 text-muted-foreground" aria-hidden />}
+              onClick={() => onOpenControlUi?.('/automation')}
+              disabled={!onOpenControlUi || gatewayStatus?.status !== 'running'}
+              comingSoonSuffix={
+                gatewayStatus?.status !== 'running' ? t('shell.dashboard.gatewayNotReady') : comingSoon
+              }
+              updateAvailableAria={updateAria}
+            />
+            <ActionCard
+              title={t('shell.dashboard.mcp')}
+              description={t('shell.dashboard.mcpDesc')}
+              icon={<Server className="w-5 h-5 text-muted-foreground" aria-hidden />}
+              onClick={() => onOpenControlUi?.('/settings/mcp')}
+              disabled={!onOpenControlUi || gatewayStatus?.status !== 'running'}
+              comingSoonSuffix={
+                gatewayStatus?.status !== 'running' ? t('shell.dashboard.gatewayNotReady') : comingSoon
+              }
               updateAvailableAria={updateAria}
             />
           </div>

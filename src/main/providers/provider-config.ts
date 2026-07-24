@@ -89,7 +89,29 @@ export function saveProviderConfig(
   next.models = next.models ?? { providers: {} }
   next.models.providers = next.models.providers ?? {}
   const existing = (next.models.providers[providerId] ?? {}) as ModelProviderConfig
-  next.models.providers[providerId] = { ...existing, ...config } as ModelProviderConfig
+  const merged = { ...existing, ...config } as ModelProviderConfig
+  // Upsert models by id so a display-name patch does not wipe sibling models.
+  if (Array.isArray(config.models) && Array.isArray(existing.models)) {
+    const byId = new Map<string, { id: string; name?: string } & Record<string, unknown>>()
+    for (const m of existing.models) {
+      if (!m || typeof m !== 'object') continue
+      const id = typeof (m as { id?: unknown }).id === 'string' ? (m as { id: string }).id.trim() : ''
+      if (!id) continue
+      byId.set(id, { ...(m as object), id } as { id: string; name?: string } & Record<string, unknown>)
+    }
+    for (const m of config.models) {
+      if (!m || typeof m !== 'object') continue
+      const id = typeof (m as { id?: unknown }).id === 'string' ? (m as { id: string }).id.trim() : ''
+      if (!id) continue
+      const prev = byId.get(id)
+      byId.set(id, { ...(prev ?? {}), ...(m as object), id } as {
+        id: string
+        name?: string
+      } & Record<string, unknown>)
+    }
+    merged.models = [...byId.values()] as ModelProviderConfig['models']
+  }
+  next.models.providers[providerId] = merged
   return next
 }
 

@@ -39,6 +39,8 @@ import {
   IPC_SKILLS_LIST,
   IPC_SKILLS_TOGGLE,
   IPC_SKILLS_RELOAD,
+  IPC_CLAWHUB_SEARCH,
+  IPC_CLAWHUB_INSTALL,
   IPC_EXTENSIONS_LIST,
   IPC_EXTENSIONS_TOGGLE,
   IPC_REGISTRY_RELOAD,
@@ -59,6 +61,9 @@ import {
   IPC_MODELS_SET_FALLBACKS,
   IPC_MODELS_SET_ALIASES,
   IPC_MODELS_AUTH_LOGIN,
+  IPC_WHATSAPP_LOGIN_START,
+  IPC_WHATSAPP_LOGIN_WAIT,
+  IPC_WHATSAPP_LOGOUT,
   IPC_GATEWAY_APPLY_CONNECTION,
   IPC_PLUGINS_LIST,
   IPC_PLUGINS_TOGGLE,
@@ -162,6 +167,20 @@ contextBridge.exposeInMainWorld('electronAPI', {
   skillsToggle: (opts: { skillKey: string; enabled: boolean }) =>
     invoke(IPC_SKILLS_TOGGLE, opts),
   skillsReload: () => invoke(IPC_SKILLS_RELOAD),
+  clawhubSearch: (opts: { query: string; limit?: number }) =>
+    invoke<{
+      ok: boolean
+      results: Array<{
+        slug: string
+        name?: string
+        description?: string
+        score?: number
+        owner?: string
+      }>
+      message?: string
+    }>(IPC_CLAWHUB_SEARCH, opts),
+  clawhubInstall: (opts: { skillRef: string }) =>
+    invoke<{ ok: boolean; slug?: string; message?: string }>(IPC_CLAWHUB_INSTALL, opts),
   extensionsList: (opts?: { source?: 'all' | 'bundled' | 'user' }) =>
     invoke(IPC_EXTENSIONS_LIST, opts ?? {}),
   extensionsToggle: (opts: { pluginId: string; enabled: boolean }) =>
@@ -199,11 +218,37 @@ contextBridge.exposeInMainWorld('electronAPI', {
       IPC_MODELS_AUTH_LOGIN,
       opts,
     ),
+  whatsappLoginStart: (opts?: { force?: boolean; accountId?: string; timeoutMs?: number }) =>
+    invoke<{
+      qrDataUrl?: string | null
+      message?: string | null
+      connected?: boolean | null
+      code?: string | null
+    }>(IPC_WHATSAPP_LOGIN_START, opts),
+  whatsappLoginWait: (opts?: {
+    currentQrDataUrl?: string | null
+    accountId?: string
+    timeoutMs?: number
+  }) =>
+    invoke<{
+      qrDataUrl?: string | null
+      message?: string | null
+      connected?: boolean | null
+      code?: string | null
+    }>(IPC_WHATSAPP_LOGIN_WAIT, opts),
+  whatsappLogout: (opts?: { accountId?: string }) =>
+    invoke<{
+      qrDataUrl?: string | null
+      message?: string | null
+      connected?: boolean | null
+      code?: string | null
+    }>(IPC_WHATSAPP_LOGOUT, opts),
   gatewayApplyConnection: (opts: {
     mode: 'local' | 'remote'
     url?: string
     token?: string
     transport?: 'direct' | 'ssh'
+    bind?: 'loopback' | 'lan' | 'auto' | 'tailnet' | 'custom'
   }) => invoke(IPC_GATEWAY_APPLY_CONNECTION, opts),
 
   pluginsList: () => invoke(IPC_PLUGINS_LIST),

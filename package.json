@@ -1,6 +1,6 @@
 {
   "name": "openclaw-desktop-plus",
-  "version": "0.8.0+openclaw.2026.7.1-2",
+  "version": "0.8.1+openclaw.2026.7.1-2",
   "openclawBundleVersion": "2026.7.1-2",
   "openclawFeishuLarkSdkVersion": "^1.60.0",
   "description": "OpenClaw Desktop Plus — community Windows desktop app and installer for OpenClaw.",

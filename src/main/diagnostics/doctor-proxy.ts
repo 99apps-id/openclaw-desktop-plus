@@ -51,6 +51,7 @@ async function runDoctorCli(opts?: {
       cwd: getBundledOpenClawDir(),
       env,
       stdio: ['ignore', 'pipe', 'pipe'],
+      windowsHide: true,
     })
 
     let stdout = ''

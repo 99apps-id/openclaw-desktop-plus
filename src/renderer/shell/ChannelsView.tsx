@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ShellLayout } from './ShellLayout'
 import { Button } from '@/components/ui/button'
@@ -80,6 +80,60 @@ export function ChannelsView({
   const [slackBotToken, setSlackBotToken] = useState('')
   const [feishuAppId, setFeishuAppId] = useState('')
   const [feishuAppSecret, setFeishuAppSecret] = useState('')
+
+  const [waQrBusy, setWaQrBusy] = useState(false)
+  const [waQrDataUrl, setWaQrDataUrl] = useState<string | null>(null)
+  const [waQrMessage, setWaQrMessage] = useState<string | null>(null)
+  const [waQrConnected, setWaQrConnected] = useState(false)
+  const waQrDataUrlRef = useRef<string | null>(null)
+  const waPollGenRef = useRef(0)
+
+  useEffect(() => {
+    waQrDataUrlRef.current = waQrDataUrl
+  }, [waQrDataUrl])
+
+  useEffect(() => {
+    return () => {
+      waPollGenRef.current += 1
+    }
+  }, [])
+
+  const stopWhatsAppQrPoll = useCallback(() => {
+    waPollGenRef.current += 1
+    setWaQrBusy(false)
+  }, [])
+
+  const runWhatsAppQrPoll = useCallback(async () => {
+    const gen = ++waPollGenRef.current
+    setWaQrBusy(true)
+    while (gen === waPollGenRef.current) {
+      try {
+        const res = await window.electronAPI.whatsappLoginWait({
+          currentQrDataUrl: waQrDataUrlRef.current,
+          accountId: waDefault.trim() || undefined,
+        })
+        if (gen !== waPollGenRef.current) return
+        if (res.qrDataUrl) {
+          waQrDataUrlRef.current = res.qrDataUrl
+          setWaQrDataUrl(res.qrDataUrl)
+        }
+        if (res.message) setWaQrMessage(res.message)
+        if (res.connected) {
+          setWaQrConnected(true)
+          waQrDataUrlRef.current = null
+          setWaQrDataUrl(null)
+          setWaQrBusy(false)
+          return
+        }
+        // Wait returned (new QR / timeout without connect) — keep looping while panel is active.
+      } catch (e) {
+        if (gen !== waPollGenRef.current) return
+        setWaQrMessage(e instanceof Error ? e.message : t('shell.channels.waQrFailed'))
+        setWaQrBusy(false)
+        return
+      }
+    }
+  }, [t, waDefault])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -261,6 +315,11 @@ export function ChannelsView({
       } catch {
         // save succeeded; restart is best-effort
       }
+      // Open Control UI Channels after restart so WhatsApp QR pairing is visible
+      // (native Channels panel does not embed the Baileys QR surface).
+      if (waEnabled) {
+        openControlUi('/channels')
+      }
     } catch (e) {
       setBanner({
         kind: 'err',
@@ -268,6 +327,68 @@ export function ChannelsView({
       })
     } finally {
       setSaving(false)
+    }
+  }
+
+  const handleWhatsAppQrStart = async (force: boolean) => {
+    stopWhatsAppQrPoll()
+    setWaQrBusy(true)
+    setWaQrMessage(null)
+    setWaQrConnected(false)
+    if (force) {
+      waQrDataUrlRef.current = null
+      setWaQrDataUrl(null)
+    }
+    try {
+      const res = await window.electronAPI.whatsappLoginStart({
+        force,
+        accountId: waDefault.trim() || undefined,
+      })
+      if (res.qrDataUrl) {
+        waQrDataUrlRef.current = res.qrDataUrl
+        setWaQrDataUrl(res.qrDataUrl)
+      }
+      setWaQrMessage(res.message ?? null)
+      if (res.connected) {
+        setWaQrConnected(true)
+        waQrDataUrlRef.current = null
+        setWaQrDataUrl(null)
+        setWaQrBusy(false)
+        return
+      }
+      if (res.qrDataUrl) {
+        // Keep UI busy while auto-waiting; gateway refreshes QR every ~15–20s.
+        void runWhatsAppQrPoll()
+      } else {
+        setWaQrBusy(false)
+      }
+    } catch (e) {
+      setWaQrMessage(e instanceof Error ? e.message : t('shell.channels.waQrFailed'))
+      waQrDataUrlRef.current = null
+      setWaQrDataUrl(null)
+      setWaQrBusy(false)
+    }
+  }
+
+  const handleWhatsAppQrWait = async () => {
+    void runWhatsAppQrPoll()
+  }
+
+  const handleWhatsAppLogout = async () => {
+    stopWhatsAppQrPoll()
+    setWaQrBusy(true)
+    try {
+      const res = await window.electronAPI.whatsappLogout({
+        accountId: waDefault.trim() || undefined,
+      })
+      waQrDataUrlRef.current = null
+      setWaQrDataUrl(null)
+      setWaQrConnected(false)
+      setWaQrMessage(res.message ?? 'Logged out.')
+    } catch (e) {
+      setWaQrMessage(e instanceof Error ? e.message : t('shell.channels.waQrFailed'))
+    } finally {
+      setWaQrBusy(false)
     }
   }
 
@@ -346,20 +467,96 @@ export function ChannelsView({
             </label>
           </div>
 
-          <div className="rounded-md border border-dashed border-border bg-muted/20 p-3 space-y-2">
+          <div className="rounded-md border border-dashed border-border bg-muted/20 p-3 space-y-3">
             <p className="text-xs font-medium flex items-center gap-1.5">
               <QrCode className="w-3.5 h-3.5" />
               {t('shell.channels.waLinkTitle')}
             </p>
+            <p className="text-xs text-muted-foreground leading-relaxed">{t('shell.channels.waQrHint')}</p>
             <ol className="text-xs text-muted-foreground list-decimal pl-4 space-y-1 leading-relaxed">
               <li>{t('shell.channels.waLinkStep1')}</li>
               <li>{t('shell.channels.waLinkStep2')}</li>
               <li>{t('shell.channels.waLinkStep3')}</li>
             </ol>
-            <Button type="button" variant="secondary" size="sm" onClick={() => openControlUi('/channels')}>
-              <ExternalLink className="w-3.5 h-3.5 mr-1" />
-              {t('shell.channels.openControlUiQr')}
-            </Button>
+
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                disabled={!waEnabled || waQrBusy}
+                onClick={() => void handleWhatsAppQrStart(false)}
+              >
+                {waQrBusy && !waQrDataUrl ? (
+                  <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+                ) : (
+                  <QrCode className="w-3.5 h-3.5 mr-1" />
+                )}
+                {waQrBusy && !waQrDataUrl ? t('shell.channels.waQrWorking') : t('shell.channels.waShowQr')}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={!waEnabled || waQrBusy}
+                onClick={() => void handleWhatsAppQrStart(true)}
+              >
+                {t('shell.channels.waRelink')}
+              </Button>
+              {waQrDataUrl ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  disabled={waQrBusy}
+                  onClick={() => void handleWhatsAppQrWait()}
+                >
+                  {waQrBusy ? (
+                    <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+                  ) : null}
+                  {waQrBusy ? t('shell.channels.waQrWaiting') : t('shell.channels.waWaitScan')}
+                </Button>
+              ) : null}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="text-destructive"
+                disabled={!waEnabled || waQrBusy}
+                onClick={() => void handleWhatsAppLogout()}
+              >
+                {t('shell.channels.waLogout')}
+              </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => openControlUi('/channels')}>
+                <ExternalLink className="w-3.5 h-3.5 mr-1" />
+                {t('shell.channels.openControlUiQr')}
+              </Button>
+            </div>
+
+            {waQrConnected ? (
+              <p className="text-xs text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5" role="status">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                {t('shell.channels.waQrConnected')}
+              </p>
+            ) : null}
+
+            {waQrMessage ? (
+              <p className="text-xs text-muted-foreground break-words" role="status">
+                {waQrMessage}
+              </p>
+            ) : null}
+
+            {waQrDataUrl ? (
+              <div className="inline-flex rounded-md border border-dashed border-border bg-background p-3">
+                <img
+                  src={waQrDataUrl}
+                  alt="WhatsApp QR"
+                  width={180}
+                  height={180}
+                  className="rounded-sm"
+                  style={{ imageRendering: 'pixelated' }}
+                />
+              </div>
+            ) : null}
           </div>
 
           <fieldset className="space-y-1.5">

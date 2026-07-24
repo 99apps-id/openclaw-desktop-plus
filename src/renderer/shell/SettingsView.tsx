@@ -31,6 +31,8 @@ export interface SettingsViewProps {
   onOpenModels?: () => void
   /** Open Channels manager */
   onOpenChannels?: () => void
+  /** Open Control UI Mobile Connect / Nodes QR */
+  onOpenMobileConnect?: () => void
 }
 
 function defaultNavigateBack() {
@@ -114,6 +116,7 @@ export function SettingsView({
   onOpenFeishuSettings,
   onOpenModels,
   onOpenChannels,
+  onOpenMobileConnect,
 }: SettingsViewProps = {}) {
   const { t, i18n } = useTranslation()
   const handleBack = onBack ?? defaultNavigateBack
@@ -188,14 +191,26 @@ export function SettingsView({
 
   return (
     <ShellLayout title={t('shell.settings.title')} onBack={handleBack}>
-      <div className="w-full max-w-2xl flex flex-col gap-8">
-        <section className="flex flex-col gap-6" aria-label={t('shell.settings.generalSectionAria')}>
+      <div className="w-full max-w-2xl flex flex-col gap-6 pb-10">
+        <section
+          className="flex flex-col gap-5 rounded-xl border border-border/70 bg-muted/20 px-4 py-5 sm:px-5"
+          aria-label={t('shell.settings.generalSectionAria')}
+        >
+          <div className="flex flex-col gap-1">
+            <h2 className="text-sm font-semibold tracking-tight">{t('shell.settings.generalSection')}</h2>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              {t('shell.settings.generalSectionDesc')}
+            </p>
+          </div>
+
           <div className="flex items-center justify-between gap-4">
-            <div className="flex flex-col gap-0.5">
+            <div className="flex flex-col gap-0.5 min-w-0">
               <label htmlFor="close-to-tray" className="text-sm font-medium">
                 {t('shell.settings.closeToTray')}
               </label>
-              <p className="text-xs text-muted-foreground">{t('shell.settings.closeToTrayDesc')}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {t('shell.settings.closeToTrayDesc')}
+              </p>
             </div>
             <Toggle
               id="close-to-tray"
@@ -205,11 +220,13 @@ export function SettingsView({
           </div>
 
           <div className="flex items-center justify-between gap-4">
-            <div className="flex flex-col gap-0.5">
+            <div className="flex flex-col gap-0.5 min-w-0">
               <label htmlFor="auto-start" className="text-sm font-medium">
                 {t('shell.settings.autoStart')}
               </label>
-              <p className="text-xs text-muted-foreground">{t('shell.settings.autoStartDesc')}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {t('shell.settings.autoStartDesc')}
+              </p>
             </div>
             <Toggle
               id="auto-start"
@@ -218,10 +235,12 @@ export function SettingsView({
             />
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2.5">
             <div className="flex flex-col gap-0.5">
               <span className="text-sm font-medium">{t('shell.settings.language')}</span>
-              <p className="text-xs text-muted-foreground">{t('shell.settings.languageDesc')}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {t('shell.settings.languageDesc')}
+              </p>
             </div>
             <Select
               value={effectiveLocale}
@@ -244,10 +263,12 @@ export function SettingsView({
             </Select>
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2.5">
             <div className="flex flex-col gap-0.5">
               <span className="text-sm font-medium">{t('shell.settings.theme')}</span>
-              <p className="text-xs text-muted-foreground">{t('shell.settings.themeDesc')}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {t('shell.settings.themeDesc')}
+              </p>
             </div>
             <div className="flex gap-2" role="radiogroup" aria-label={t('shell.settings.themeRadiogroupAria')}>
               {THEME_OPTIONS.map((opt) => (
@@ -267,10 +288,12 @@ export function SettingsView({
             </div>
           </div>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-2.5">
             <div className="flex flex-col gap-0.5">
               <span className="text-sm font-medium">{t('shell.settings.updateChannel')}</span>
-              <p className="text-xs text-muted-foreground">{t('shell.settings.updateChannelDesc')}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {t('shell.settings.updateChannelDesc')}
+              </p>
             </div>
             <div className="flex gap-2" role="radiogroup" aria-label={t('shell.settings.updateChannelRadiogroupAria')}>
               <Button
@@ -296,7 +319,7 @@ export function SettingsView({
         </section>
 
         {(onOpenModels || onOpenChannels) && (
-          <section className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4">
+          <section className="flex flex-col gap-3 rounded-xl border border-border/70 bg-muted/20 px-4 py-5 sm:px-5">
             <p className="text-sm font-medium">{t('shell.settings.shortcutsSection')}</p>
             <div className="flex flex-wrap gap-2">
               {onOpenModels && (
@@ -313,19 +336,32 @@ export function SettingsView({
           </section>
         )}
 
-        <GatewayRemoteSection />
+        <section className="rounded-xl border border-border/70 bg-muted/20 px-4 py-5 sm:px-5">
+          <GatewayRemoteSection onOpenMobileConnect={onOpenMobileConnect} />
+        </section>
 
-        <ModelSettingsSection />
+        <section className="rounded-xl border border-border/70 bg-muted/20 px-4 py-5 sm:px-5">
+          <ModelSettingsSection />
+        </section>
 
-        <VisionModelSettingsSection />
+        <section className="rounded-xl border border-border/70 bg-muted/20 px-4 py-5 sm:px-5">
+          <VisionModelSettingsSection />
+        </section>
 
-        <FailoverSettingsSection />
+        <section className="rounded-xl border border-border/70 bg-muted/20 px-4 py-5 sm:px-5">
+          <FailoverSettingsSection />
+        </section>
 
         {onOpenFeishuSettings && (
-          <section className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4" aria-label={t('shell.settings.feishuSection')}>
+          <section
+            className="flex flex-col gap-3 rounded-xl border border-border/70 bg-muted/20 px-4 py-5 sm:px-5"
+            aria-label={t('shell.settings.feishuSection')}
+          >
             <div className="flex flex-col gap-0.5">
               <span className="text-sm font-medium">{t('shell.settings.feishuSection')}</span>
-              <p className="text-xs text-muted-foreground">{t('shell.settings.feishuSectionDesc')}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                {t('shell.settings.feishuSectionDesc')}
+              </p>
             </div>
             <Button type="button" variant="secondary" className="w-fit" onClick={onOpenFeishuSettings}>
               {t('shell.settings.openFeishuSettings')}

@@ -15,7 +15,7 @@ pnpm dev
 
 **Prerequisites:** Node.js >= 22.22.3 · pnpm · Windows 10/11 for packaging/tests
 
-More detail: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) · [docs/PACKAGING.md](docs/PACKAGING.md)
+More detail: [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) · [docs/PACKAGING.md](docs/PACKAGING.md) · [docs/USER_GUIDE.md](docs/USER_GUIDE.md) (operator-facing)
 
 ## Project layout
 
@@ -56,7 +56,7 @@ pnpm build
 - Assets are published via GitHub Actions ([`.github/workflows/release.yml`](.github/workflows/release.yml)).
 - Installer name: `OpenClaw-Desktop-Plus-Setup-<version>.exe`
 - Bundled OpenClaw pin: `package.json` → `openclawBundleVersion`; manifest refreshed by `prepare-bundle`
-- Release tags: `v` + `package.json` `version` (e.g. `v0.8.0+openclaw.2026.7.1-2`)
+- Release tags: `v` + `package.json` `version` (e.g. `v0.8.1+openclaw.2026.7.1-2`)
 
 ## License
 

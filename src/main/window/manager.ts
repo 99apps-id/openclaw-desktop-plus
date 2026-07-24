@@ -31,14 +31,30 @@ function getPreloadCandidates(): string[] {
 
 function getWindowIconPath(): string | null {
   const baseDir = app.isPackaged ? path.dirname(app.getPath('exe')) : process.cwd()
-  const candidates = [
-    path.join(baseDir, 'apple-touch-icon.png'),
-    path.join(baseDir, 'resources', 'apple-touch-icon.png'),
-    path.join(baseDir, 'resources', 'icon.ico'),
-    path.join(baseDir, 'resources', 'tray-icon.png'),
-    path.join(baseDir, 'build', 'tray-icon.png'),
-    path.join(baseDir, 'build', 'icon.ico'),
-  ]
+  const resourcesPath = app.isPackaged ? process.resourcesPath : path.join(process.cwd(), 'resources')
+  // Windows taskbar/title-bar need .ico — PNG often fails and Electron falls back to its default atom icon.
+  const candidates =
+    process.platform === 'win32'
+      ? [
+          path.join(resourcesPath, 'icon.ico'),
+          path.join(baseDir, 'resources', 'icon.ico'),
+          path.join(process.cwd(), 'resources', 'icon.ico'),
+          path.join(resourcesPath, 'apple-touch-icon.png'),
+          path.join(resourcesPath, 'tray-icon.png'),
+          path.join(baseDir, 'resources', 'apple-touch-icon.png'),
+          path.join(baseDir, 'resources', 'tray-icon.png'),
+        ]
+      : [
+          path.join(resourcesPath, 'apple-touch-icon.png'),
+          path.join(resourcesPath, 'icon.ico'),
+          path.join(resourcesPath, 'tray-icon.png'),
+          path.join(baseDir, 'resources', 'apple-touch-icon.png'),
+          path.join(baseDir, 'resources', 'icon.ico'),
+          path.join(baseDir, 'resources', 'tray-icon.png'),
+          path.join(baseDir, 'apple-touch-icon.png'),
+          path.join(process.cwd(), 'resources', 'apple-touch-icon.png'),
+          path.join(process.cwd(), 'resources', 'icon.ico'),
+        ]
   for (const candidate of candidates) {
     if (fs.existsSync(candidate)) return candidate
   }
@@ -141,6 +157,12 @@ export class WindowManager {
       logWarn(`[OpenClaw] Preload not found, window without preload: ${preloadPath}`)
     }
     const iconPath = getWindowIconPath()
+    const iconImage = iconPath ? nativeImage.createFromPath(iconPath) : nativeImage.createEmpty()
+    if (!iconPath || iconImage.isEmpty()) {
+      logWarn(`[OpenClaw] Window icon missing or empty (path=${iconPath ?? 'null'}); taskbar may show Electron default`)
+    } else {
+      logInfo(`[OpenClaw] Window icon: ${iconPath}`)
+    }
     const shouldCenter = windowBounds.x < 0 || windowBounds.y < 0
     const initialLocale = shellConfig.locale ?? normalizeToShellLocale(app.getLocale())
     const initialTitle = getLocalizedShellWindowTitle(initialLocale)
@@ -155,7 +177,7 @@ export class WindowManager {
       show: false,
       center: shouldCenter,
       title: initialTitle,
-      icon: iconPath ? nativeImage.createFromPath(iconPath) : undefined,
+      icon: iconImage.isEmpty() ? undefined : iconImage,
       webPreferences: {
         ...(preloadExists ? { preload: preloadPath } : {}),
         contextIsolation: true,

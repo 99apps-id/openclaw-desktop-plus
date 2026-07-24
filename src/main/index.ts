@@ -21,7 +21,11 @@ import { getUserDataDir, getInstallDir, getBundledOpenClawPath } from './utils/p
 /** Toast / Notification on Windows prefers an explicit icon next to AppUserModelId. */
 function resolveShellNotificationIconPath(): string | undefined {
   const installDir = getInstallDir()
+  const resourcesPath = process.resourcesPath
   const candidates = [
+    path.join(resourcesPath, 'apple-touch-icon.png'),
+    path.join(resourcesPath, 'tray-icon.png'),
+    path.join(resourcesPath, 'icon.ico'),
     path.join(installDir, 'resources', 'apple-touch-icon.png'),
     path.join(installDir, 'resources', 'tray-icon.png'),
     path.join(installDir, 'resources', 'icon.ico'),
@@ -256,8 +260,9 @@ app.whenReady().then(() => {
   logInfo('[OpenClaw] Single instance lock acquired.')
 
   app.on('second-instance', () => {
+    // Focus only — do not reload. A full reload remounts Control UI and aborts
+    // in-flight WhatsApp QR pairing / WebSocket sessions.
     windowManager.showMainWindow()
-    windowManager.reloadMainWindow()
     logInfo('[OpenClaw] Second instance attempted, focusing existing window')
   })
 

@@ -165,6 +165,22 @@ export interface ElectronAPI {
   skillsList: (opts?: { source?: 'all' | 'bundled' | 'user' }) => Promise<SkillRegistryItem[]>
   skillsToggle: (opts: { skillKey: string; enabled: boolean }) => Promise<{ ok: boolean }>
   skillsReload: () => Promise<{ ok: boolean }>
+  clawhubSearch: (opts: { query: string; limit?: number }) => Promise<{
+    ok: boolean
+    results: Array<{
+      slug: string
+      name?: string
+      description?: string
+      score?: number
+      owner?: string
+    }>
+    message?: string
+  }>
+  clawhubInstall: (opts: { skillRef: string }) => Promise<{
+    ok: boolean
+    slug?: string
+    message?: string
+  }>
   extensionsList: (opts?: { source?: 'all' | 'bundled' | 'user' }) => Promise<ExtensionRegistryItem[]>
   extensionsToggle: (opts: { pluginId: string; enabled: boolean }) => Promise<{ ok: boolean }>
   registryReload: () => Promise<{ ok: boolean }>
@@ -190,11 +206,39 @@ export interface ElectronAPI {
     provider: string
     method?: 'oauth' | 'api-key'
   }) => Promise<{ ok: boolean; exitCode: number; message: string; stdout: string; stderr: string }>
+  whatsappLoginStart: (opts?: {
+    force?: boolean
+    accountId?: string
+    timeoutMs?: number
+  }) => Promise<{
+    qrDataUrl?: string | null
+    message?: string | null
+    connected?: boolean | null
+    code?: string | null
+  }>
+  whatsappLoginWait: (opts?: {
+    currentQrDataUrl?: string | null
+    accountId?: string
+    timeoutMs?: number
+  }) => Promise<{
+    qrDataUrl?: string | null
+    message?: string | null
+    connected?: boolean | null
+    code?: string | null
+  }>
+  whatsappLogout: (opts?: { accountId?: string }) => Promise<{
+    qrDataUrl?: string | null
+    message?: string | null
+    connected?: boolean | null
+    code?: string | null
+  }>
   gatewayApplyConnection: (opts: {
     mode: 'local' | 'remote'
     url?: string
     token?: string
     transport?: 'direct' | 'ssh'
+    /** Local mode only: how the bundled gateway listens (needed for Mobile Connect QR). */
+    bind?: 'loopback' | 'lan' | 'auto' | 'tailnet' | 'custom'
   }) => Promise<GatewayStatus>
 
   pluginsList: () => Promise<{ plugins: PluginInfo[]; workspaceDir?: string }>

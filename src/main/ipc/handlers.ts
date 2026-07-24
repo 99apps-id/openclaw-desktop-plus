@@ -55,6 +55,8 @@ import {
   IPC_SKILLS_LIST,
   IPC_SKILLS_TOGGLE,
   IPC_SKILLS_RELOAD,
+  IPC_CLAWHUB_SEARCH,
+  IPC_CLAWHUB_INSTALL,
   IPC_EXTENSIONS_LIST,
   IPC_EXTENSIONS_TOGGLE,
   IPC_REGISTRY_RELOAD,
@@ -75,6 +77,9 @@ import {
   IPC_MODELS_SET_FALLBACKS,
   IPC_MODELS_SET_ALIASES,
   IPC_MODELS_AUTH_LOGIN,
+  IPC_WHATSAPP_LOGIN_START,
+  IPC_WHATSAPP_LOGIN_WAIT,
+  IPC_WHATSAPP_LOGOUT,
   IPC_GATEWAY_APPLY_CONNECTION,
   IPC_PLUGINS_LIST,
   IPC_PLUGINS_TOGGLE,
@@ -115,8 +120,13 @@ import {
   removeProfileFromAuthOrder,
   normalizeAuthOrderEntry,
 } from '../providers/index.js'
-import { listSkillsWithProxy } from '../skills/index.js'
-import { listModelsWithProxy } from '../models/index.js'
+import { listSkillsWithProxy, searchClawHubSkills, installClawHubSkill } from '../skills/index.js'
+import { listModelsWithProxy, resolvePrimaryModelRef } from '../models/index.js'
+import {
+  whatsappLoginStart,
+  whatsappLoginWait,
+  whatsappLogout,
+} from '../channels/whatsapp-login.js'
 import { modelsAuthLogin } from '../models/models-auth-proxy.js'
 import {
   listPluginsWithCli,
@@ -626,7 +636,13 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
         ? (raw.fallbacks as unknown[]).filter((x): x is string => typeof x === 'string')
         : undefined
       const current = deps.readOpenClawConfig()
-      const next = setModelDefaults(current, { primary, fallbacks })
+      const qualifiedPrimary =
+        primary !== undefined ? resolvePrimaryModelRef(current, primary) : undefined
+      const qualifiedFallbacks = fallbacks?.map((f) => resolvePrimaryModelRef(current, f))
+      const next = setModelDefaults(current, {
+        primary: qualifiedPrimary,
+        fallbacks: qualifiedFallbacks,
+      })
       deps.writeOpenClawConfig(next)
     }),
   )
@@ -768,6 +784,33 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
   )
 
   ipcMain.handle(
+    IPC_CLAWHUB_SEARCH,
+    wrapHandler('CLAWHUB_SEARCH', async (opts?: unknown) => {
+      const raw =
+        opts && typeof opts === 'object' && !Array.isArray(opts)
+          ? (opts as Record<string, unknown>)
+          : {}
+      const query = String(raw.query ?? raw.q ?? '')
+      const limit = typeof raw.limit === 'number' ? raw.limit : undefined
+      const config = deps.readOpenClawConfig()
+      return searchClawHubSkills(config, query, limit)
+    }),
+  )
+
+  ipcMain.handle(
+    IPC_CLAWHUB_INSTALL,
+    wrapHandler('CLAWHUB_INSTALL', async (opts?: unknown) => {
+      const raw =
+        opts && typeof opts === 'object' && !Array.isArray(opts)
+          ? (opts as Record<string, unknown>)
+          : {}
+      const skillRef = String(raw.skillRef ?? raw.slug ?? raw.ref ?? '')
+      const config = deps.readOpenClawConfig()
+      return installClawHubSkill(config, skillRef)
+    }),
+  )
+
+  ipcMain.handle(
     IPC_EXTENSIONS_LIST,
     wrapHandler('EXTENSIONS_LIST', (opts?: unknown) => {
       const raw = opts && typeof opts === 'object' && !Array.isArray(opts)
@@ -844,9 +887,11 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
       const primary = String(raw.modelId ?? raw.primary ?? '')
       if (!primary) throw new Error('modelId or primary is required')
       const current = deps.readOpenClawConfig()
-      const next = setModelDefaults(current, { primary })
+      // Bare ids (e.g. "nesa-free") become openai/<id> upstream and break chat.
+      const qualified = resolvePrimaryModelRef(current, primary)
+      const next = setModelDefaults(current, { primary: qualified })
       deps.writeOpenClawConfig(next)
-      return { ok: true }
+      return { ok: true, primary: qualified }
     }),
   )
 
@@ -858,9 +903,10 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
         ? (raw.fallbacks as unknown[]).filter((x): x is string => typeof x === 'string')
         : []
       const current = deps.readOpenClawConfig()
-      const next = setModelDefaults(current, { fallbacks })
+      const qualified = fallbacks.map((f) => resolvePrimaryModelRef(current, f))
+      const next = setModelDefaults(current, { fallbacks: qualified })
       deps.writeOpenClawConfig(next)
-      return { ok: true }
+      return { ok: true, fallbacks: qualified }
     }),
   )
 
@@ -896,6 +942,49 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
   )
 
   ipcMain.handle(
+    IPC_WHATSAPP_LOGIN_START,
+    wrapHandler('WHATSAPP_LOGIN_START', async (opts?: unknown) => {
+      const raw =
+        opts && typeof opts === 'object' && !Array.isArray(opts)
+          ? (opts as Record<string, unknown>)
+          : {}
+      return whatsappLoginStart({
+        force: raw.force === true,
+        accountId: typeof raw.accountId === 'string' ? raw.accountId : undefined,
+        timeoutMs: typeof raw.timeoutMs === 'number' ? raw.timeoutMs : undefined,
+      })
+    }),
+  )
+
+  ipcMain.handle(
+    IPC_WHATSAPP_LOGIN_WAIT,
+    wrapHandler('WHATSAPP_LOGIN_WAIT', async (opts?: unknown) => {
+      const raw =
+        opts && typeof opts === 'object' && !Array.isArray(opts)
+          ? (opts as Record<string, unknown>)
+          : {}
+      return whatsappLoginWait({
+        currentQrDataUrl: typeof raw.currentQrDataUrl === 'string' ? raw.currentQrDataUrl : undefined,
+        accountId: typeof raw.accountId === 'string' ? raw.accountId : undefined,
+        timeoutMs: typeof raw.timeoutMs === 'number' ? raw.timeoutMs : undefined,
+      })
+    }),
+  )
+
+  ipcMain.handle(
+    IPC_WHATSAPP_LOGOUT,
+    wrapHandler('WHATSAPP_LOGOUT', async (opts?: unknown) => {
+      const raw =
+        opts && typeof opts === 'object' && !Array.isArray(opts)
+          ? (opts as Record<string, unknown>)
+          : {}
+      return whatsappLogout({
+        accountId: typeof raw.accountId === 'string' ? raw.accountId : undefined,
+      })
+    }),
+  )
+
+  ipcMain.handle(
     IPC_GATEWAY_APPLY_CONNECTION,
     wrapHandler('GATEWAY_APPLY_CONNECTION', async (opts: unknown) => {
       const raw = validatePlainObject(opts, 'gateway:applyConnection opts')
@@ -918,6 +1007,17 @@ export function registerIpcHandlers(deps: IpcHandlerDeps): void {
           url,
           ...(token ? { token } : {}),
           transport,
+        }
+      } else {
+        const bindRaw = typeof raw.bind === 'string' ? raw.bind.trim() : ''
+        if (
+          bindRaw === 'loopback' ||
+          bindRaw === 'lan' ||
+          bindRaw === 'auto' ||
+          bindRaw === 'tailnet' ||
+          bindRaw === 'custom'
+        ) {
+          nextGw.bind = bindRaw
         }
       }
       const next = { ...current, gateway: nextGw } as OpenClawConfig
@@ -1165,6 +1265,8 @@ export function removeIpcHandlers(): void {
   ipcMain.removeHandler(IPC_SKILLS_LIST)
   ipcMain.removeHandler(IPC_SKILLS_TOGGLE)
   ipcMain.removeHandler(IPC_SKILLS_RELOAD)
+  ipcMain.removeHandler(IPC_CLAWHUB_SEARCH)
+  ipcMain.removeHandler(IPC_CLAWHUB_INSTALL)
   ipcMain.removeHandler(IPC_EXTENSIONS_LIST)
   ipcMain.removeHandler(IPC_EXTENSIONS_TOGGLE)
   ipcMain.removeHandler(IPC_REGISTRY_RELOAD)
@@ -1176,6 +1278,9 @@ export function removeIpcHandlers(): void {
   ipcMain.removeHandler(IPC_MODELS_SET_FALLBACKS)
   ipcMain.removeHandler(IPC_MODELS_SET_ALIASES)
   ipcMain.removeHandler(IPC_MODELS_AUTH_LOGIN)
+  ipcMain.removeHandler(IPC_WHATSAPP_LOGIN_START)
+  ipcMain.removeHandler(IPC_WHATSAPP_LOGIN_WAIT)
+  ipcMain.removeHandler(IPC_WHATSAPP_LOGOUT)
   ipcMain.removeHandler(IPC_GATEWAY_APPLY_CONNECTION)
   ipcMain.removeHandler(IPC_PLUGINS_LIST)
   ipcMain.removeHandler(IPC_PLUGINS_TOGGLE)
