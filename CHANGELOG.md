@@ -19,6 +19,7 @@ All notable changes to OpenClaw Desktop Plus will be documented in this file.
 - **Custom providers:** Upsert models by id instead of wiping sibling catalog entries.
 - **Control UI shortcuts:** Use real Control UI routes (`/automation`, `/settings/mcp`); preserve remote `controlUi` base path when deep-linking.
 - **Release CI:** Publish/upload globs match `OpenClaw-Desktop-Plus-Setup-*.exe` (was still looking for legacy `OpenClaw-Setup-*.exe`).
+- **Control UI CI:** Fall back to `npx tsdown` when local `npm install tsdown` crashes (npm `edgesOut`).
 
 ## [0.8.0] - 2026-07-24
 

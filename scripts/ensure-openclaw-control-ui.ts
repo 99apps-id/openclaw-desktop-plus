@@ -456,19 +456,39 @@ async function materializeOpenClawUiWorkspacePackages(
       if (wsDeps.some((d) => !built.has(d))) continue
 
       console.log(`  [control-ui] building workspace package ${name}...`)
-      execSync('npm install --no-audit --no-fund', {
+      execSync('npm install --no-audit --no-fund --legacy-peer-deps', {
         cwd: destDir,
         stdio: 'inherit',
         env: { ...process.env, NODE_ENV: '' },
       })
       if (pkg.scripts?.build) {
         // Monorepo packages call `tsdown` from the workspace root; install locally for desktop builds.
+        // Some npm versions crash on `npm install tsdown` (edgesOut); fall back to npx.
         if (/\btsdown\b/.test(pkg.scripts.build)) {
-          execSync('npm install --no-save --no-audit --no-fund tsdown@0.22.1', {
-            cwd: destDir,
-            stdio: 'inherit',
-            env: { ...process.env, NODE_ENV: '' },
-          })
+          let tsdownReady = false
+          try {
+            execSync('npm install --no-save --no-audit --no-fund --legacy-peer-deps tsdown@0.22.1', {
+              cwd: destDir,
+              stdio: 'inherit',
+              env: { ...process.env, NODE_ENV: '' },
+            })
+            tsdownReady = true
+          } catch (err) {
+            console.warn(
+              `  [control-ui] tsdown local install failed (${err instanceof Error ? err.message : String(err)}); using npx`,
+            )
+          }
+          if (!tsdownReady) {
+            execSync('npx --yes tsdown@0.22.1', {
+              cwd: destDir,
+              stdio: 'inherit',
+              env: { ...process.env, NODE_ENV: '' },
+            })
+            built.add(name)
+            pending.delete(name)
+            progress = true
+            continue
+          }
         }
         execSync('npm run build', {
           cwd: destDir,
